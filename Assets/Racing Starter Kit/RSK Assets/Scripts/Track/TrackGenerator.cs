@@ -30,7 +30,7 @@ namespace SpinMotion
                 trackRoot = transform;
             }
 
-            if (regenerateOnRestart)
+            if (regenerateOnRestart && gameEvents != null)
             {
                 gameEvents.RestartRaceEvent.AddListener(GenerateTrack);
             }
@@ -102,13 +102,13 @@ namespace SpinMotion
 
                 if (!TryAlign(candidate, previousExit))
                 {
-                    Destroy(candidate.gameObject);
+                    DisposeSegment(candidate);
                     continue;
                 }
 
                 if (OverlapsExistingSegments(candidate, previousSegment))
                 {
-                    Destroy(candidate.gameObject);
+                    DisposeSegment(candidate);
                     continue;
                 }
 
@@ -180,11 +180,17 @@ namespace SpinMotion
             {
                 if (spawnedSegments[i] != null)
                 {
-                    Destroy(spawnedSegments[i].gameObject);
+                    DisposeSegment(spawnedSegments[i]);
                 }
             }
 
             spawnedSegments.Clear();
+        }
+
+        private void DisposeSegment(TrackSegment segment)
+        {
+            segment.transform.SetParent(null);
+            Destroy(segment.gameObject);
         }
 
         private void RebuildTrackConsumers()
