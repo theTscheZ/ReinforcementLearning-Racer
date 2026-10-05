@@ -12,11 +12,6 @@ namespace SpinMotion
 
         private void Start()
         {
-            RebuildWaypoints();
-        }
-
-        public void RebuildWaypoints()
-        {
             var waypoints = GetComponentsInChildren<Transform>().ToList();
             waypoints.RemoveAt(0); // unity adds parent transform so remove it, leave only child
             aiWaypointSet.Items.Clear();

@@ -39,8 +39,18 @@
 # Jetbrains Rider personal-layer settings
 *.DotSettings.user
 
-# Visual Studio cache directory
+# Visual Studio / Rider
 .vs/
+.idea/
+.gradle/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
 
 # Gradle cache directory
 .gradle/
