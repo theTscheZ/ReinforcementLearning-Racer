@@ -28,9 +28,9 @@ namespace SpinMotion
                 if (realTimeRacePositions.Item.CheckpointScores[i] == checkpointNumber)
                 {
                     //from here we can get the distance of the car position to the checkpoint position
-                    nDistanceX = this.transform.localPosition.x - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.x;
-                    nDistanceY = this.transform.localPosition.y - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.y;
-                    nDistanceZ = this.transform.localPosition.z - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.z;
+                    nDistanceX = this.transform.position.x - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.x;
+                    nDistanceY = this.transform.position.y - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.y;
+                    nDistanceZ = this.transform.position.z - realTimeRacePositions.Item.CarCheckpointTrackers[i].transform.position.z;
                     var checkpointDistanceToCarCheckpointTracker = Math.Sqrt(Math.Pow(nDistanceX, 2) + Math.Pow(nDistanceY, 2) + Math.Pow(nDistanceZ, 2));
                     realTimeRacePositions.Item.DistanceFromCheckpointToCarTrackers[i] = checkpointDistanceToCarCheckpointTracker;//and we send the information to the ChkManager.cs script (checkpoint manager)
                     //checkpoint manager will compare the distance, checkpoints passed and laps done of each car of the race to obtain real time positioning
