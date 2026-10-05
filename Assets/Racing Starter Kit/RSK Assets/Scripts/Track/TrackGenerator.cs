@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace SpinMotion
@@ -195,15 +196,76 @@ namespace SpinMotion
 
         private void RebuildTrackConsumers()
         {
-            if (checkpoints != null)
+            RebuildCheckpointsConsumer();
+            RebuildAiWaypointsConsumer();
+        }
+
+        private void RebuildCheckpointsConsumer()
+        {
+            if (checkpoints == null)
             {
-                checkpoints.RebuildCheckpoints();
+                return;
             }
 
-            if (aiWaypoints != null)
+            var rebuildMethod = checkpoints.GetType().GetMethod("RebuildCheckpoints", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, System.Type.EmptyTypes, null);
+            if (rebuildMethod != null)
             {
-                aiWaypoints.RebuildWaypoints();
+                rebuildMethod.Invoke(checkpoints, null);
+                return;
             }
+
+            checkpoints.checkpoints.Clear();
+            checkpoints.checkpoints.AddRange(checkpoints.GetComponentsInChildren<Checkpoint>());
+            for (int i = 0; i < checkpoints.checkpoints.Count; i++)
+            {
+                checkpoints.checkpoints[i].SetCheckpointNumber(i + 1);
+                checkpoints.checkpoints[i].gameObject.name = BuildCheckpointName(checkpoints.checkpoints[i].gameObject.name, i + 1);
+            }
+
+            RaceData.CheckpointsCount = checkpoints.checkpoints.Count;
+        }
+
+        private void RebuildAiWaypointsConsumer()
+        {
+            if (aiWaypoints == null || aiWaypoints.aiWaypointSet == null)
+            {
+                return;
+            }
+
+            var rebuildMethod = aiWaypoints.GetType().GetMethod("RebuildWaypoints", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, System.Type.EmptyTypes, null);
+            if (rebuildMethod != null)
+            {
+                rebuildMethod.Invoke(aiWaypoints, null);
+                return;
+            }
+
+            var waypointSet = aiWaypoints.aiWaypointSet;
+            waypointSet.Items.Clear();
+            var waypoints = aiWaypoints.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < waypoints.Length; i++)
+            {
+                if (waypoints[i] == aiWaypoints.transform)
+                {
+                    continue;
+                }
+
+                if (waypoints[i].TryGetComponent<MeshRenderer>(out var meshRenderer))
+                {
+                    waypointSet.Add(new AIWaypoint { aiWaypointTransform = waypoints[i], aiWaypointMeshRenderer = meshRenderer });
+                    meshRenderer.enabled = false;
+                }
+            }
+        }
+
+        private string BuildCheckpointName(string currentName, int checkpointNumber)
+        {
+            var baseName = currentName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = "Checkpoint";
+            }
+
+            return baseName + checkpointNumber;
         }
     }
 }
