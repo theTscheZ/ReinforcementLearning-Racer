@@ -4,7 +4,7 @@
 PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 28
-  productGUID: 1e707f8c79c7fc74f81c9a3baa88b2f3
+  productGUID: d70d5714a70ca2241a64d393d036d878
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
@@ -865,7 +865,7 @@ PlayerSettings:
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
   metroPackageName: ReinforcementLearning-Racer
-  metroPackageVersion: 1.0.0.0
+  metroPackageVersion: 
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
@@ -873,7 +873,7 @@ PlayerSettings:
   metroCertificateNotAfter: 0000000000000000
   metroApplicationDescription: ReinforcementLearning-Racer
   wsaImages: {}
-  metroTileShortName: ReinforcementLearning-Racer
+  metroTileShortName: 
   metroTileShowName: 0
   metroMediumTileShowName: 0
   metroLargeTileShowName: 0

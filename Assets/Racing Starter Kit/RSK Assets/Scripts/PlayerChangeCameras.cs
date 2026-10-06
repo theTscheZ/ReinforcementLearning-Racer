@@ -12,7 +12,7 @@ namespace SpinMotion
         [Header("Edit > Project Settings > Input - Set your axes name here:")]
         public string changeCameraInput;
         
-        private int currentCameraIndex;
+        private int currentCameraIndex = 0;
 
         private void Awake()
         {
@@ -20,7 +20,10 @@ namespace SpinMotion
                 camera.gameObject.SetActive(false);
 
             gameEvents.ChangeToRaceCamerasEvent.AddListener(OnChangeToRaceCameras);
+
+            OnChangeToRaceCameras();
         }
+
 
         private void OnChangeToRaceCameras()
         {

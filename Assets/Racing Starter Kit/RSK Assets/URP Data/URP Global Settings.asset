@@ -54,11 +54,11 @@ MonoBehaviour:
       - rid: 8836164222119051282
       - rid: 8836164222119051283
       - rid: 8836164222119051284
-      - rid: 26474096481009872
-      - rid: 26474096481009873
-      - rid: 26474096481009874
-      - rid: 26474096481009875
-      - rid: 26474096481009876
+      - rid: 6047634039824973883
+      - rid: 6047634039824973884
+      - rid: 6047634039824973885
+      - rid: 6047634039824973886
+      - rid: 6047634039824973887
     m_RuntimeSettings:
       m_List: []
   m_AssetVersion: 8
@@ -91,7 +91,7 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 26474096481009872
+    - rid: 6047634039824973883
       type: {class: ScreenSpaceAmbientOcclusionDynamicResources, ns: UnityEngine.Rendering.Universal,
         asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -104,7 +104,7 @@ MonoBehaviour:
         - {fileID: 2800000, guid: 3302065f671a8450b82c9ddf07426f3a, type: 3}
         - {fileID: 2800000, guid: 56a77a3e8d64f47b6afe9e3c95cb57d5, type: 3}
         m_Version: 0
-    - rid: 26474096481009873
+    - rid: 6047634039824973884
       type: {class: PostProcessData/TextureResources, ns: UnityEngine.Rendering.Universal,
         asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -155,7 +155,7 @@ MonoBehaviour:
         smaaAreaTex: {fileID: 2800000, guid: d1f1048909d55cd4fa1126ab998f617e, type: 3}
         smaaSearchTex: {fileID: 2800000, guid: 51eee22c2a633ef4aada830eed57c3fd, type: 3}
         m_TexturesResourcesVersion: 0
-    - rid: 26474096481009874
+    - rid: 6047634039824973885
       type: {class: PostProcessData/ShaderResources, ns: UnityEngine.Rendering.Universal,
         asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -188,13 +188,13 @@ MonoBehaviour:
         finalPostPassPS: {fileID: 4800000, guid: c49e63ed1bbcb334780a3bd19dfed403,
           type: 3}
         m_ShaderResourcesVersion: 0
-    - rid: 26474096481009875
+    - rid: 6047634039824973886
       type: {class: ScreenSpaceAmbientOcclusionPersistentResources, ns: UnityEngine.Rendering.Universal,
         asm: Unity.RenderPipelines.Universal.Runtime}
       data:
         m_Shader: {fileID: 4800000, guid: 0849e84e3d62649e8882e9d6f056a017, type: 3}
         m_Version: 0
-    - rid: 26474096481009876
+    - rid: 6047634039824973887
       type: {class: UniversalRenderPipelineEditorAssets, ns: UnityEngine.Rendering.Universal,
         asm: Unity.RenderPipelines.Universal.Runtime}
       data:
