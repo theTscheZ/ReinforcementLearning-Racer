@@ -269,7 +269,50 @@ namespace SpinMotion
             }
 
             Debug.LogError($"[TRACK] FAILED: all {attempts} attempts rejected.");
+
+            // Spieler steht auf dem aktuell letzten Segment?
+            if (activeSegments.Count >= 2 &&
+                IsPlayerOnLastSegment())
+            {
+                var segmentToRemove =
+                    activeSegments[^2];
+
+                Debug.LogWarning(
+                    $"[TRACK] Removing previous segment '{segmentToRemove.name}' and retrying."
+                );
+
+                activeSegments.RemoveAt(activeSegments.Count - 2);
+
+                DisposeSegment(segmentToRemove);
+
+                Physics.SyncTransforms();
+
+                return TryCreateNextSegment(
+                    previousExit,
+                    previousSegment
+                );
+            }
+
             return null;
+        }
+        
+        private bool IsPlayerOnLastSegment()
+        {
+            if (activeSegments.Count == 0)
+                return false;
+
+            var lastSegment = activeSegments[^1];
+
+            var colliders =
+                lastSegment.GetComponentsInChildren<Collider>();
+
+            foreach (var col in colliders)
+            {
+                if (col.bounds.Contains(player.position))
+                    return true;
+            }
+
+            return false;
         }
 
         private void BuildShuffledPrefabOrder()

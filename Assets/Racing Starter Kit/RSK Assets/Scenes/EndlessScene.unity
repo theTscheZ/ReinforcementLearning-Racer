@@ -486,6 +486,7 @@ MonoBehaviour:
   - {fileID: 7787327789548470467, guid: c52ae6b26d9341044a0c04a95ce7abe6, type: 3}
   - {fileID: 5787932183916723627, guid: c69d87d5b53c21a469cea1f7ee034067, type: 3}
   - {fileID: 7326189847685756026, guid: 6e7f99fbde228e44ba7810f9455a1415, type: 3}
+  - {fileID: 5787932183916723627, guid: 23499e20b08d0f14b8ae7fea34e3a123, type: 3}
   initialSegmentCount: 2
   maxActiveSegments: 3
   maxPlacementAttempts: 20
