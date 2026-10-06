@@ -13,21 +13,29 @@ namespace SpinMotion
         public List<TrackSegment> segmentPrefabs = new();
         [Min(2)] public int initialSegmentCount = 10;
         [Min(2)] public int maxActiveSegments = 14;
-        [Min(1)] public int minSegmentsBeforeDespawn = 6;
         [Min(1)] public int maxPlacementAttempts = 20;
 
         [Header("Distances")]
         [Min(1f)] public float spawnDistanceToEnd = 80f;
         [Min(0f)] public float despawnBufferDistance = 10f;
 
+        [Header("Spawning")]
+        [Min(1)] public int maxSpawnsPerFrame = 3;
+        [Min(0f)] public float retryDelayAfterFailure = 1f;
+
         [Header("Randomness")]
         public bool useFixedSeed = false;
         public int seed = 0;
 
+        [Header("Debug")]
+        public bool verboseLogging = false;
+
         private readonly List<TrackSegment> activeSegments = new();
+        private readonly List<int> prefabOrder = new();
 
         private Transform lastExit;
         private TrackSegment lastPlacedSegment;
+        private float nextSpawnAllowedTime;
 
         private void Start()
         {
@@ -41,12 +49,24 @@ namespace SpinMotion
                 return;
             }
 
-            if (Vector3.Distance(player.position, lastExit.position) <= spawnDistanceToEnd)
-            {
-                AppendNextSegment();
-            }
-
+            // Erst alte Segmente entfernen
             TrimPassedSegments();
+
+            int spawned = 0;
+
+            while (spawned < maxSpawnsPerFrame
+                   && activeSegments.Count < maxActiveSegments
+                   && Time.time >= nextSpawnAllowedTime
+                   && Vector3.Distance(player.position, lastExit.position) <= spawnDistanceToEnd)
+            {
+                if (!AppendNextSegment())
+                {
+                    nextSpawnAllowedTime = Time.time + retryDelayAfterFailure;
+                    break;
+                }
+
+                spawned++;
+            }
         }
 
         [ContextMenu("Rebuild Endless Track")]
@@ -58,9 +78,19 @@ namespace SpinMotion
                 return;
             }
 
-            if (startSegmentPrefab == null)
+            // Von Hand platziertes Startsegment (Szene) suchen; sonst Prefab-Asset als Fallback.
+            TrackSegment sceneStart = FindSceneStartSegment();
+            bool prefabAssetUsable =
+                startSegmentPrefab != null &&
+                !startSegmentPrefab.gameObject.scene.IsValid() &&
+                startSegmentPrefab.ExitPoint != null;
+
+            if (sceneStart == null && !prefabAssetUsable)
             {
-                Debug.LogError("EndlessTrackGenerator requires a start segment prefab.");
+                Debug.LogError(
+                    "No start segment: place a TrackSegment (with ExitPoint) in the scene " +
+                    "or assign a start segment prefab asset."
+                );
                 return;
             }
 
@@ -75,14 +105,17 @@ namespace SpinMotion
                 maxActiveSegments = initialSegmentCount;
             }
 
-            if (minSegmentsBeforeDespawn >= maxActiveSegments)
-            {
-                minSegmentsBeforeDespawn = Mathf.Max(1, maxActiveSegments - 1);
-            }
-
             if (trackRoot == null)
             {
                 trackRoot = transform;
+            }
+
+            // Mindestens ein gültiges Prefab nötig (nicht null, Entry + Exit vorhanden).
+            BuildShuffledPrefabOrder();
+            if (prefabOrder.Count == 0)
+            {
+                Debug.LogError("No valid segment prefab found (needs EntryPoint and ExitPoint).");
+                return;
             }
 
             if (useFixedSeed)
@@ -91,16 +124,26 @@ namespace SpinMotion
             }
 
             ClearTrack();
+            nextSpawnAllowedTime = 0f;
 
-            var startSegment = Instantiate(startSegmentPrefab, trackRoot);
-            startSegment.transform.SetPositionAndRotation(transform.position, transform.rotation);
+            TrackSegment startSegment;
+            if (sceneStart != null)
+            {
+                // Von Hand platziertes Segment: an seiner Position lassen, NICHT klonen.
+                // Es wird wie ein generiertes Segment geführt und später auch weggetrimmt.
+                startSegment = sceneStart;
+                startSegment.gameObject.SetActive(true);
+            }
+            else
+            {
+                startSegment = Instantiate(startSegmentPrefab, trackRoot);
+                startSegment.transform.SetPositionAndRotation(transform.position, transform.rotation);
+            }
+
             activeSegments.Add(startSegment);
 
-            if (startSegment.ExitPoint == null)
-            {
-                Debug.LogError("Start segment is missing ExitPoint.");
-                return;
-            }
+            // Collider-Bounds sind sonst noch auf der Prefab-Position (Physics synchronisiert erst später).
+            Physics.SyncTransforms();
 
             lastPlacedSegment = startSegment;
             lastExit = startSegment.ExitPoint;
@@ -112,6 +155,54 @@ namespace SpinMotion
                     break;
                 }
             }
+        }
+
+        // Sucht das Startsegment, das schon in der Szene liegt:
+        // 1) ein im Feld zugewiesenes Szenenobjekt, sonst
+        // 2) automatisch das TrackSegment in der Szene, das dem Generator am nächsten liegt.
+        private TrackSegment FindSceneStartSegment()
+        {
+            if (startSegmentPrefab != null && startSegmentPrefab.gameObject.scene.IsValid())
+            {
+                return IsUsableStart(startSegmentPrefab) ? startSegmentPrefab : null;
+            }
+
+            var found = FindObjectsByType<TrackSegment>(FindObjectsSortMode.None);
+            TrackSegment best = null;
+            float bestSqrDistance = float.MaxValue;
+            int candidates = 0;
+
+            for (int i = 0; i < found.Length; i++)
+            {
+                if (!IsUsableStart(found[i]))
+                {
+                    continue;
+                }
+
+                candidates++;
+                float sqrDistance = (found[i].transform.position - transform.position).sqrMagnitude;
+                if (sqrDistance < bestSqrDistance)
+                {
+                    bestSqrDistance = sqrDistance;
+                    best = found[i];
+                }
+            }
+
+            if (candidates > 1)
+            {
+                Debug.LogWarning(
+                    $"[TRACK] {candidates} TrackSegments in scene, using the closest one to the generator: {best.name}"
+                );
+            }
+
+            return best;
+        }
+
+        private bool IsUsableStart(TrackSegment segment)
+        {
+            return segment != null
+                   && segment.ExitPoint != null
+                   && !activeSegments.Contains(segment);
         }
 
         private bool AppendNextSegment()
@@ -128,44 +219,120 @@ namespace SpinMotion
             return true;
         }
 
-        private TrackSegment TryCreateNextSegment(Transform previousExit, TrackSegment previousSegment)
+        private TrackSegment TryCreateNextSegment(
+            Transform previousExit,
+            TrackSegment previousSegment)
         {
-            for (int attempt = 0; attempt < maxPlacementAttempts; attempt++)
+            // Jedes Prefab höchstens einmal pro Versuchsrunde probieren: Die Ausrichtung ist
+            // deterministisch, ein erneuter Versuch mit demselben Prefab liefert dasselbe Ergebnis.
+            BuildShuffledPrefabOrder();
+            int attempts = Mathf.Min(maxPlacementAttempts, prefabOrder.Count);
+
+            for (int attempt = 0; attempt < attempts; attempt++)
             {
-                var prefab = segmentPrefabs[Random.Range(0, segmentPrefabs.Count)];
+                var prefab = segmentPrefabs[prefabOrder[attempt]];
+
+                if (verboseLogging)
+                {
+                    Debug.Log($"[TRACK] Attempt {attempt + 1}/{attempts}: {prefab.name}");
+                }
+
                 var candidate = Instantiate(prefab, trackRoot);
 
                 if (!TryAlign(candidate, previousExit))
                 {
+                    Debug.LogWarning($"[TRACK] REJECTED {prefab.name}: alignment failed");
                     DisposeSegment(candidate);
                     continue;
                 }
 
+                // Ohne Sync wären die Collider-Bounds noch an der alten Position -> falsche Overlap-Ergebnisse.
+                Physics.SyncTransforms();
+
                 if (OverlapsExistingSegments(candidate, previousSegment))
                 {
+                    if (verboseLogging)
+                    {
+                        Debug.LogWarning($"[TRACK] REJECTED {prefab.name}: overlap");
+                    }
+
                     DisposeSegment(candidate);
                     continue;
+                }
+
+                if (verboseLogging)
+                {
+                    Debug.Log($"[TRACK] ACCEPTED {prefab.name}");
                 }
 
                 return candidate;
             }
 
+            Debug.LogError($"[TRACK] FAILED: all {attempts} attempts rejected.");
             return null;
         }
 
-        private bool TryAlign(TrackSegment segment, Transform previousExit)
+        private void BuildShuffledPrefabOrder()
         {
-            if (segment.EntryPoint == null || segment.ExitPoint == null)
+            prefabOrder.Clear();
+
+            for (int i = 0; i < segmentPrefabs.Count; i++)
             {
-                Debug.LogError($"Segment '{segment.name}' is missing EntryPoint or ExitPoint.");
+                var prefab = segmentPrefabs[i];
+                if (prefab != null && prefab.EntryPoint != null && prefab.ExitPoint != null)
+                {
+                    prefabOrder.Add(i);
+                }
+            }
+
+            // Fisher-Yates
+            for (int i = prefabOrder.Count - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (prefabOrder[i], prefabOrder[j]) = (prefabOrder[j], prefabOrder[i]);
+            }
+        }
+
+        private bool TryAlign(
+            TrackSegment segment,
+            Transform previousExit)
+        {
+            if (segment.EntryPoint == null ||
+                segment.ExitPoint == null)
+            {
+                Debug.LogError(
+                    $"Segment '{segment.name}' is missing EntryPoint or ExitPoint."
+                );
+
                 return false;
             }
 
-            var rotationDelta = Quaternion.FromToRotation(segment.EntryPoint.forward, previousExit.forward);
-            segment.transform.rotation = rotationDelta * segment.transform.rotation;
+            Transform entry = segment.EntryPoint;
 
-            var positionDelta = previousExit.position - segment.EntryPoint.position;
+            // Entry soll dieselbe Vorwärtsrichtung wie der
+            // vorherige Exit haben, aber immer mit Y-Up.
+            Quaternion targetRotation = Quaternion.LookRotation(
+                previousExit.forward,
+                Vector3.up
+            );
+
+            Quaternion entryRotation = Quaternion.LookRotation(
+                entry.forward,
+                Vector3.up
+            );
+
+            segment.transform.rotation =
+                targetRotation *
+                Quaternion.Inverse(entryRotation) *
+                segment.transform.rotation;
+
+            // Entry exakt auf Exit verschieben.
+            Vector3 positionDelta =
+                previousExit.position -
+                segment.EntryPoint.position;
+
             segment.transform.position += positionDelta;
+
             return true;
         }
 
@@ -209,9 +376,11 @@ namespace SpinMotion
 
         private void TrimPassedSegments()
         {
-            while (activeSegments.Count > maxActiveSegments && activeSegments.Count > minSegmentsBeforeDespawn)
+            // Mindestens das aktuelle/letzte Segment behalten
+            while (activeSegments.Count > 1)
             {
                 var oldestSegment = activeSegments[0];
+
                 if (oldestSegment == null || oldestSegment.ExitPoint == null)
                 {
                     activeSegments.RemoveAt(0);
@@ -219,7 +388,9 @@ namespace SpinMotion
                 }
 
                 var toPlayer = player.position - oldestSegment.ExitPoint.position;
-                var playerPastExit = Vector3.Dot(oldestSegment.ExitPoint.forward, toPlayer) > 0f;
+                bool playerPastExit =
+                    Vector3.Dot(oldestSegment.ExitPoint.forward, toPlayer) > 0f;
+
                 if (!playerPastExit || toPlayer.magnitude < despawnBufferDistance)
                 {
                     break;
@@ -234,10 +405,7 @@ namespace SpinMotion
         {
             for (int i = activeSegments.Count - 1; i >= 0; i--)
             {
-                if (activeSegments[i] != null)
-                {
-                    DisposeSegment(activeSegments[i]);
-                }
+                DisposeSegment(activeSegments[i]);
             }
 
             activeSegments.Clear();
@@ -247,6 +415,14 @@ namespace SpinMotion
 
         private void DisposeSegment(TrackSegment segment)
         {
+            if (segment == null)
+            {
+                return;
+            }
+
+            // Destroy wirkt erst am Frame-Ende: sofort deaktivieren, damit
+            // Collider des verworfenen Segments nicht mehr im Spiel "herumstehen".
+            segment.gameObject.SetActive(false);
             segment.transform.SetParent(null);
             Destroy(segment.gameObject);
         }
