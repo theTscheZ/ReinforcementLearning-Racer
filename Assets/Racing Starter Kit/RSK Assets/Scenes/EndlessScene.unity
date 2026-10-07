@@ -214,6 +214,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player Car 1
       objectReference: {fileID: 0}
+    - target: {fileID: 4956954954255778322, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
+        type: 3}
+      propertyPath: m_TagString
+      value: Player
+      objectReference: {fileID: 0}
     - target: {fileID: 6911106138519220384, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
         type: 3}
       propertyPath: m_Enabled
@@ -489,13 +494,9 @@ MonoBehaviour:
   - {fileID: 5787932183916723627, guid: 23499e20b08d0f14b8ae7fea34e3a123, type: 3}
   initialSegmentCount: 2
   maxActiveSegments: 3
-  maxPlacementAttempts: 20
-  spawnDistanceToEnd: 80
-  despawnBufferDistance: 10
-  maxSpawnsPerFrame: 1
-  retryDelayAfterFailure: 1
+  checkpointTimer: {fileID: 1927223034}
   useFixedSeed: 0
-  seed: 0
+  seed: 67
   verboseLogging: 0
 --- !u!4 &1638612974
 Transform:
@@ -580,11 +581,92 @@ PrefabInstance:
       propertyPath: m_Name
       value: RaceManager
       objectReference: {fileID: 0}
+    - target: {fileID: 9217151696029115601, guid: 22cdf6bce5e8a49dfbc41b46de5d894a,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 22cdf6bce5e8a49dfbc41b46de5d894a, type: 3}
+--- !u!1 &1927223032
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1927223033}
+  - component: {fileID: 1927223034}
+  m_Layer: 0
+  m_Name: timer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1927223033
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1927223032}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2096342231}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1927223034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1927223032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77f8e31b23908ea4c849e9d924c88d48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!1 &2096342230
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2096342231}
+  m_Layer: 0
+  m_Name: manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2096342231
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2096342230}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 104.699135, y: 1.5278368, z: 238.46402}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1927223033}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2102260279
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -668,3 +750,4 @@ SceneRoots:
   - {fileID: 1638612974}
   - {fileID: 2102260279}
   - {fileID: 1846681444}
+  - {fileID: 2096342231}
