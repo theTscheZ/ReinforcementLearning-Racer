@@ -13,15 +13,16 @@ namespace SpinMotion
         public List<TrackSegment> segmentPrefabs = new();
         [Min(2)] public int initialSegmentCount = 10;
         [Min(2)] public int maxActiveSegments = 14;
-        [Min(1)] public int maxPlacementAttempts = 20;
+        // [Min(1)] public int maxPlacementAttempts = 20;
+        [SerializeField] private CheckpointTimer checkpointTimer;
 
-        [Header("Distances")]
-        [Min(1f)] public float spawnDistanceToEnd = 80f;
-        [Min(0f)] public float despawnBufferDistance = 10f;
-
-        [Header("Spawning")]
-        [Min(1)] public int maxSpawnsPerFrame = 3;
-        [Min(0f)] public float retryDelayAfterFailure = 1f;
+        // [Header("Distances")]
+        // [Min(1f)] public float spawnDistanceToEnd = 80f;
+        // [Min(0f)] public float despawnBufferDistance = 10f;
+        //
+        // [Header("Spawning")]
+        // [Min(1)] public int maxSpawnsPerFrame = 3;
+        // [Min(0f)] public float retryDelayAfterFailure = 1f;
 
         [Header("Randomness")]
         public bool useFixedSeed = false;
@@ -42,32 +43,9 @@ namespace SpinMotion
             BuildInitialTrack();
         }
 
-        private void Update()
-        {
-            if (player == null || lastExit == null || activeSegments.Count == 0)
-            {
-                return;
-            }
-
-            // Erst alte Segmente entfernen
-            TrimPassedSegments();
-
-            int spawned = 0;
-
-            while (spawned < maxSpawnsPerFrame
-                   && activeSegments.Count < maxActiveSegments
-                   && Time.time >= nextSpawnAllowedTime
-                   && Vector3.Distance(player.position, lastExit.position) <= spawnDistanceToEnd)
-            {
-                if (!AppendNextSegment())
-                {
-                    nextSpawnAllowedTime = Time.time + retryDelayAfterFailure;
-                    break;
-                }
-
-                spawned++;
-            }
-        }
+        // private void Update()
+        // {
+        // }
 
         [ContextMenu("Rebuild Endless Track")]
         public void BuildInitialTrack()
@@ -141,6 +119,7 @@ namespace SpinMotion
             }
 
             activeSegments.Add(startSegment);
+            InitializeSegment(startSegment);
 
             // Collider-Bounds sind sonst noch auf der Prefab-Position (Physics synchronisiert erst später).
             Physics.SyncTransforms();
@@ -204,18 +183,26 @@ namespace SpinMotion
                    && segment.ExitPoint != null
                    && !activeSegments.Contains(segment);
         }
-
+        
         private bool AppendNextSegment()
         {
-            var segment = TryCreateNextSegment(lastExit, lastPlacedSegment);
+            var segment = TryCreateNextSegment(
+                lastExit,
+                lastPlacedSegment
+            );
+
             if (segment == null)
             {
                 return false;
             }
 
             activeSegments.Add(segment);
+
             lastPlacedSegment = segment;
             lastExit = segment.ExitPoint;
+
+            InitializeSegment(segment);
+
             return true;
         }
 
@@ -226,7 +213,7 @@ namespace SpinMotion
             // Jedes Prefab höchstens einmal pro Versuchsrunde probieren: Die Ausrichtung ist
             // deterministisch, ein erneuter Versuch mit demselben Prefab liefert dasselbe Ergebnis.
             BuildShuffledPrefabOrder();
-            int attempts = Mathf.Min(maxPlacementAttempts, prefabOrder.Count);
+            int attempts = prefabOrder.Count;
 
             for (int attempt = 0; attempt < attempts; attempt++)
             {
@@ -238,6 +225,8 @@ namespace SpinMotion
                 }
 
                 var candidate = Instantiate(prefab, trackRoot);
+                //weil aus irgendeinem grund manchmal deaktiviert gespawnt wird
+                candidate.gameObject.SetActive(true);
 
                 if (!TryAlign(candidate, previousExit))
                 {
@@ -269,7 +258,50 @@ namespace SpinMotion
             }
 
             Debug.LogError($"[TRACK] FAILED: all {attempts} attempts rejected.");
+
+            // Spieler steht auf dem aktuell letzten Segment?
+            if (activeSegments.Count >= 2 &&
+                IsPlayerOnLastSegment())
+            {
+                var segmentToRemove =
+                    activeSegments[^2];
+
+                Debug.LogWarning(
+                    $"[TRACK] Removing previous segment '{segmentToRemove.name}' and retrying."
+                );
+
+                activeSegments.RemoveAt(activeSegments.Count - 2);
+
+                DisposeSegment(segmentToRemove);
+
+                Physics.SyncTransforms();
+
+                return TryCreateNextSegment(
+                    previousExit,
+                    previousSegment
+                );
+            }
+
             return null;
+        }
+        
+        private bool IsPlayerOnLastSegment()
+        {
+            if (activeSegments.Count == 0)
+                return false;
+
+            var lastSegment = activeSegments[^1];
+
+            var colliders =
+                lastSegment.GetComponentsInChildren<Collider>();
+
+            foreach (var col in colliders)
+            {
+                if (col.bounds.Contains(player.position))
+                    return true;
+            }
+
+            return false;
         }
 
         private void BuildShuffledPrefabOrder()
@@ -373,32 +405,57 @@ namespace SpinMotion
 
             return false;
         }
-
-        private void TrimPassedSegments()
+        
+        private void RemoveSegmentsBefore(TrackSegment reachedSegment)
         {
-            // Mindestens das aktuelle/letzte Segment behalten
-            while (activeSegments.Count > 1)
+            int reachedIndex = activeSegments.IndexOf(reachedSegment);
+
+            if (reachedIndex <= 0)
             {
-                var oldestSegment = activeSegments[0];
+                return;
+            }
 
-                if (oldestSegment == null || oldestSegment.ExitPoint == null)
+            for (int i = reachedIndex - 1; i >= 0; i--)
+            {
+                TrackSegment segment = activeSegments[i];
+
+                activeSegments.RemoveAt(i);
+                DisposeSegment(segment);
+            }
+        }
+        
+        private void EnsureTrackAhead()
+        {
+            while (activeSegments.Count < maxActiveSegments)
+            {
+                if (!AppendNextSegment())
                 {
-                    activeSegments.RemoveAt(0);
-                    continue;
-                }
+                    Debug.LogWarning(
+                        "[TRACK] Could not fill track to maxActiveSegments."
+                    );
 
-                var toPlayer = player.position - oldestSegment.ExitPoint.position;
-                bool playerPastExit =
-                    Vector3.Dot(oldestSegment.ExitPoint.forward, toPlayer) > 0f;
-
-                if (!playerPastExit || toPlayer.magnitude < despawnBufferDistance)
-                {
                     break;
                 }
-
-                activeSegments.RemoveAt(0);
-                DisposeSegment(oldestSegment);
             }
+        }
+        
+        private void InitializeSegment(TrackSegment segment)
+        {
+            if (segment == null)
+            {
+                return;
+            }
+
+            if (segment.Checkpoint == null)
+            {
+                Debug.LogError(
+                    $"Segment '{segment.name}' has no checkpoint assigned."
+                );
+
+                return;
+            }
+
+            segment.Checkpoint.Initialize(this, segment);
         }
 
         private void ClearTrack()
@@ -425,6 +482,42 @@ namespace SpinMotion
             segment.gameObject.SetActive(false);
             segment.transform.SetParent(null);
             Destroy(segment.gameObject);
+        }
+        
+        public void CheckpointReached(TrackSegment reachedSegment)
+        {
+            if (reachedSegment == null)
+            {
+                return;
+            }
+            
+            float segmentTime = checkpointTimer.CompleteSegment();
+
+            Debug.Log(
+                $"Checkpoint reached! Segment time: {segmentTime:F2}s"
+            );
+
+            int reachedIndex = activeSegments.IndexOf(reachedSegment);
+
+            if (reachedIndex < 0)
+            {
+                Debug.LogWarning(
+                    $"[TRACK] Checkpoint reached for unknown segment '{reachedSegment.name}'."
+                );
+
+                return;
+            }
+
+            if (verboseLogging)
+            {
+                Debug.Log(
+                    $"[TRACK] Checkpoint reached: {reachedSegment.name}"
+                );
+            }
+
+            RemoveSegmentsBefore(reachedSegment);
+
+            EnsureTrackAhead();
         }
     }
 }
