@@ -13,16 +13,7 @@ namespace SpinMotion
         public List<TrackSegment> segmentPrefabs = new();
         [Min(2)] public int initialSegmentCount = 10;
         [Min(2)] public int maxActiveSegments = 14;
-        // [Min(1)] public int maxPlacementAttempts = 20;
         [SerializeField] private CheckpointTimer checkpointTimer;
-
-        // [Header("Distances")]
-        // [Min(1f)] public float spawnDistanceToEnd = 80f;
-        // [Min(0f)] public float despawnBufferDistance = 10f;
-        //
-        // [Header("Spawning")]
-        // [Min(1)] public int maxSpawnsPerFrame = 3;
-        // [Min(0f)] public float retryDelayAfterFailure = 1f;
 
         [Header("Randomness")]
         public bool useFixedSeed = false;
@@ -36,7 +27,6 @@ namespace SpinMotion
 
         private Transform lastExit;
         private TrackSegment lastPlacedSegment;
-        private float nextSpawnAllowedTime;
 
         private void Start()
         {
@@ -102,7 +92,6 @@ namespace SpinMotion
             }
 
             ClearTrack();
-            nextSpawnAllowedTime = 0f;
 
             TrackSegment startSegment;
             if (sceneStart != null)

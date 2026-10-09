@@ -4,12 +4,23 @@ namespace SpinMotion
 {
     public class CheckpointTimer : MonoBehaviour
     {
+        [SerializeField] private float maxSegmentTime = 10f;
+        
         private float segmentStartTime;
         private bool running;
 
         private void Start()
         {
             StartTimer();
+        }
+        
+        private void Update()
+        {
+            if (running && GetCurrentSegmentTime() >= maxSegmentTime)
+            {
+                Debug.LogWarning($"Segment time exceeded max time of {maxSegmentTime} seconds.");
+                // reset episode
+            }
         }
 
         public void StartTimer()

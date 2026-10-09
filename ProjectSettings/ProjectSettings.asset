@@ -831,6 +831,7 @@ PlayerSettings:
   webWasm2023: 0
   scriptingDefineSymbols:
     Android: MOBILE_INPUT;USE_MOBILE_INPUT
+    Standalone: SENTIS_ANALYTICS_ENABLED
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
