@@ -453,6 +453,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 738282027}
   m_CullTransparentMesh: 1
+--- !u!1 &790989916
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 790989917}
+  m_Layer: 0
+  m_Name: spawnTransform
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &790989917
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 790989916}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -104.699135, y: -1.5678368, z: -237.30402}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2096342231}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &862316966
 GameObject:
   m_ObjectHideFlags: 0
@@ -715,18 +746,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 542019114}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1440284250 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1088993870937972363, guid: 9f2e38dce05a6f94baa61470a71438e3,
-    type: 3}
-  m_PrefabInstance: {fileID: 542019114}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7edaa65f366040d892e594404f232afb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1638612972
 GameObject:
   m_ObjectHideFlags: 0
@@ -758,7 +777,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 623858681}
   trackRoot: {fileID: 526478924}
-  startSegmentPrefab: {fileID: 1440284250}
+  startSegmentPrefab: {fileID: 1088993870937972363, guid: 9f2e38dce05a6f94baa61470a71438e3,
+    type: 3}
   segmentPrefabs:
   - {fileID: 233275493174673678, guid: ed01b725d68604140a98c3a7802e6192, type: 3}
   - {fileID: 7326189847685756026, guid: 42b845953b4c09d48bf3737c51c468d7, type: 3}
@@ -769,10 +789,10 @@ MonoBehaviour:
   initialSegmentCount: 2
   maxActiveSegments: 3
   checkpointTimer: {fileID: 1927223034}
-  useFixedSeed: 1
+  useFixedSeed: 0
   seed: 67
-  verboseLogging: 0
   cpCounterText: {fileID: 2069377474}
+  verboseLogging: 0
 --- !u!4 &1638612974
 Transform:
   m_ObjectHideFlags: 0
@@ -1101,6 +1121,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1927223033}
+  - {fileID: 790989917}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2102260279
@@ -1212,6 +1233,9 @@ MonoBehaviour:
   MaxStep: 0
   car: {fileID: 2109136659}
   targetCheckpoint: {fileID: 1440284249}
+  trackGenerator: {fileID: 1638612973}
+  spawnPoint: {fileID: 790989917}
+  prefab: {fileID: 1088993870937972363, guid: 9f2e38dce05a6f94baa61470a71438e3, type: 3}
 --- !u!114 &2109136665
 MonoBehaviour:
   m_ObjectHideFlags: 0

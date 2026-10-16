@@ -16,10 +16,15 @@ namespace SpinMotion
         [Min(2)] public int initialSegmentCount = 10;
         [Min(2)] public int maxActiveSegments = 14;
         [SerializeField] private CheckpointTimer checkpointTimer;
+        public Transform targetCheckpoint { get; private set; }
 
         [Header("Randomness")]
         public bool useFixedSeed = false;
         public int seed = 0;
+        
+        [Header("UI")]
+        [SerializeField] private TMP_Text cpCounterText;
+        private int cpCounter = 0;
 
         [Header("Debug")]
         public bool verboseLogging = false;
@@ -29,9 +34,6 @@ namespace SpinMotion
 
         private Transform lastExit;
         private TrackSegment lastPlacedSegment;
-
-        [SerializeField] private TMP_Text cpCounterText;
-        private int cpCounter = 0;
 
         private void Start()
         {
@@ -128,6 +130,7 @@ namespace SpinMotion
                     break;
                 }
             }
+            targetCheckpoint = activeSegments[0].Checkpoint.transform;
         }
 
         // Sucht das Startsegment, das schon in der Szene liegt:
@@ -462,6 +465,20 @@ namespace SpinMotion
             activeSegments.Clear();
             lastExit = null;
             lastPlacedSegment = null;
+        }
+        
+        public void ResetTrack()
+        {
+            targetCheckpoint = null;
+
+            ClearTrack();
+
+            cpCounter = 0;
+
+            if (cpCounterText != null)
+                cpCounterText.text = "CP: 0";
+
+            BuildInitialTrack();
         }
 
         private void DisposeSegment(TrackSegment segment)
