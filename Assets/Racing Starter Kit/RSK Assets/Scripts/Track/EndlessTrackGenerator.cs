@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using Unity.AppUI.UI;
 using UnityEngine;
+using TMPro;
 
 namespace SpinMotion
 {
@@ -27,6 +29,9 @@ namespace SpinMotion
 
         private Transform lastExit;
         private TrackSegment lastPlacedSegment;
+
+        [SerializeField] private TMP_Text cpCounterText;
+        private int cpCounter = 0;
 
         private void Start()
         {
@@ -503,6 +508,9 @@ namespace SpinMotion
                     $"[TRACK] Checkpoint reached: {reachedSegment.name}"
                 );
             }
+
+            cpCounter++;
+            cpCounterText.text = "CP: " + cpCounter;
 
             RemoveSegmentsBefore(reachedSegment);
 
