@@ -1,4 +1,5 @@
 
+using System;
 using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
@@ -11,40 +12,53 @@ namespace SpinMotion
     {
         [SerializeField] private CarController car;
         [SerializeField] private Transform targetCheckpoint;
+        [SerializeField] private EndlessTrackGenerator trackGenerator;
+        [SerializeField] private Transform spawnPoint;
+        [SerializeField] private TrackSegment prefab;
+        
+        private Rigidbody rb;
 
         public override void Initialize()
         {
             if (car == null)
                 car = GetComponent<CarController>();
+            
+            rb = GetComponent<Rigidbody>();
         }
 
-        public override void CollectObservations(
-            VectorSensor sensor)
+        public void Update()
         {
-            // Position des Checkpoints relativ zum Auto
-            Vector3 targetLocal =
-                transform.InverseTransformPoint(
-                    targetCheckpoint.position);
+            if (car.transform.position.y < -5f)
+            {
+                // Das Auto ist von der Strecke gefallen.
+                // Episode zurücksetzen.
+                AddReward(-1f);
+                EndEpisode();
+            }
+        }
 
-            sensor.AddObservation(
-                Mathf.Clamp(targetLocal.x / 50f, -1f, 1f));
+        public override void CollectObservations(VectorSensor sensor)
+        {
+            // Checkpoint sicher prüfen
+            if (targetCheckpoint == null)
+            {
+                sensor.AddObservation(0f);
+                sensor.AddObservation(0f);
+            }
+            else
+            {
+                Vector3 targetLocal = transform.InverseTransformPoint(
+                    targetCheckpoint.position
+                );
 
-            sensor.AddObservation(
-                Mathf.Clamp(targetLocal.z / 100f, -1f, 1f));
+                sensor.AddObservation(
+                    Mathf.Clamp(targetLocal.x / 50f, -1f, 1f)
+                );
 
-            // Geschwindigkeit relativ zur Ausrichtung des Autos
-            Vector3 localVelocity =
-                transform.InverseTransformDirection(
-                    GetComponent<Rigidbody>().linearVelocity);
-
-            sensor.AddObservation(
-                Mathf.Clamp(localVelocity.x / 30f, -1f, 1f));
-
-            sensor.AddObservation(
-                Mathf.Clamp(localVelocity.z / 50f, -1f, 1f));
-
-            sensor.AddObservation(
-                Mathf.Clamp01(car.CurrentSpeed / car.MaxSpeed));
+                sensor.AddObservation(
+                    Mathf.Clamp(targetLocal.z / 100f, -1f, 1f)
+                );
+            }
         }
 
         public override void OnActionReceived(
@@ -76,6 +90,32 @@ namespace SpinMotion
 
             actions[2] = Input.GetAxis("Vertical") < 0f
                 ? -Input.GetAxis("Vertical") : 0f;
+        }
+        
+        private void ResetCar()
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+
+            transform.SetPositionAndRotation(
+                spawnPoint.position,
+                spawnPoint.rotation);
+        }
+        
+        public override void OnEpisodeBegin()
+        {
+            ResetCar();
+
+            // Hier muss auch die Strecke zurückgesetzt werden.
+            // Danach muss der Generator wieder ein gültiges
+            // TargetCheckpoint bereitstellen.
+
+            if (trackGenerator != null)
+            {
+                trackGenerator.ResetTrack();
+            }
+            // Instantiate(prefab, trackRoot.transform);
+            
         }
     }
 }
