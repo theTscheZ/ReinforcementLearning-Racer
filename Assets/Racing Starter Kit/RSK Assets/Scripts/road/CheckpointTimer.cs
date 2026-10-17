@@ -5,6 +5,7 @@ namespace SpinMotion
     public class CheckpointTimer : MonoBehaviour
     {
         [SerializeField] private float maxSegmentTime = 10f;
+        [SerializeField] private CarAgent carAgent;
         
         private float segmentStartTime;
         private bool running;
@@ -20,6 +21,10 @@ namespace SpinMotion
             {
                 Debug.LogWarning($"Segment time exceeded max time of {maxSegmentTime} seconds.");
                 // reset episode
+                running = false;
+                carAgent.AddReward(-1f);
+                carAgent.EndEpisode();
+                StartTimer();
             }
         }
 

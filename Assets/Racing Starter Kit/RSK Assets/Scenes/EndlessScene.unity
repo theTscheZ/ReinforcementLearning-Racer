@@ -935,6 +935,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxSegmentTime: 10
+  carAgent: {fileID: 2109136664}
 --- !u!1 &2042961141 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9217151696029115601, guid: 22cdf6bce5e8a49dfbc41b46de5d894a,
@@ -1235,7 +1236,7 @@ MonoBehaviour:
   targetCheckpoint: {fileID: 1440284249}
   trackGenerator: {fileID: 1638612973}
   spawnPoint: {fileID: 790989917}
-  prefab: {fileID: 1088993870937972363, guid: 9f2e38dce05a6f94baa61470a71438e3, type: 3}
+  raceTimer: {fileID: 2042961144}
 --- !u!114 &2109136665
 MonoBehaviour:
   m_ObjectHideFlags: 0

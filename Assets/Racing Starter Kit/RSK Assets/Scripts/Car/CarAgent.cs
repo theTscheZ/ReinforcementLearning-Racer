@@ -14,7 +14,7 @@ namespace SpinMotion
         [SerializeField] private Transform targetCheckpoint;
         [SerializeField] private EndlessTrackGenerator trackGenerator;
         [SerializeField] private Transform spawnPoint;
-        [SerializeField] private TrackSegment prefab;
+        [SerializeField] private RaceTimer raceTimer;
         
         private Rigidbody rb;
 
@@ -114,8 +114,11 @@ namespace SpinMotion
             {
                 trackGenerator.ResetTrack();
             }
-            // Instantiate(prefab, trackRoot.transform);
-            
+
+            if (raceTimer != null)
+            {
+                raceTimer.ResetTimer();
+            }
         }
     }
 }
