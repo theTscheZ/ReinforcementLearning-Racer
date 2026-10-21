@@ -4,7 +4,7 @@ namespace SpinMotion
 {
     public class CheckpointTimer : MonoBehaviour
     {
-        [SerializeField] private float maxSegmentTime = 10f;
+        [SerializeField] private float maxSegmentTime = 20f;
         [SerializeField] private CarAgent carAgent;
         
         private float segmentStartTime;
@@ -24,7 +24,7 @@ namespace SpinMotion
                 running = false;
                 carAgent.AddReward(-1f);
                 carAgent.EndEpisode();
-                StartTimer();
+                Debug.LogWarning("[RESET] CheckpointTimer: Zeitlimit");
             }
         }
 
@@ -32,6 +32,11 @@ namespace SpinMotion
         {
             segmentStartTime = Time.time;
             running = true;
+        }
+        
+        public void StopTimer()
+        {
+            running = false;
         }
 
         public float GetCurrentSegmentTime()
@@ -50,6 +55,19 @@ namespace SpinMotion
             float segmentTime = Time.time - segmentStartTime;
 
             segmentStartTime = Time.time;
+            
+            // Grundreward für das Erreichen
+            float reward = 1f;
+
+            // Bonus für schnelles Erreichen
+            float speedBonus = Mathf.Clamp(
+                (maxSegmentTime - segmentTime) / maxSegmentTime,
+                0f,
+                1f
+            );
+
+            carAgent.AddReward(reward + speedBonus);
+            Debug.Log($"Reward: {reward + speedBonus}");
 
             return segmentTime;
         }

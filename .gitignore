@@ -115,3 +115,21 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# ML-Agents embedded git
+ml-agents-source/
+
+# ML-Agents training results
+results/
+
+# ML-Agents generated logs and checkpoints
+*.onnx
+*.pt

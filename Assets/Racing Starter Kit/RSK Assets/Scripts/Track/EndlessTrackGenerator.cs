@@ -530,7 +530,6 @@ namespace SpinMotion
             cpCounterText.text = "CP: " + cpCounter;
 
             RemoveSegmentsBefore(reachedSegment);
-
             EnsureTrackAhead();
         }
     }

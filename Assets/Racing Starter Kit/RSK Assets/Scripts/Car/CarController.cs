@@ -128,6 +128,7 @@ namespace SpinMotion
 
         public void Move(float steering, float accel, float footbrake, float handbrake)
         {
+            // Debug.Log($"MOVE EINTRITT: accel={accel}");
             for (int i = 0; i < 4; i++)
             {
                 Quaternion quat;
@@ -158,6 +159,11 @@ namespace SpinMotion
 
             SteerHelper();
             ApplyDrive(accel, footbrake);
+            // Debug.Log(
+            //     $"Gas={accel:F2}, Torque={m_CurrentTorque:F1}, " +
+            //     $"MotorTorque={m_WheelColliders[0].motorTorque:F1}, " +
+            //     $"Speed={CurrentSpeed:F2}"
+            // );
             CapSpeed();
 
             //Set the handbrake.

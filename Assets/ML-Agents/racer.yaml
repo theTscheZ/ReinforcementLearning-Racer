@@ -1,6 +1,6 @@
 
 behaviors:
-  "My Behavior":
+  "CarAgent":
     trainer_type: ppo
 
     keep_checkpoints: 5
@@ -8,18 +8,17 @@ behaviors:
     checkpoint_interval: 500000
     max_steps: 500000
     time_horizon: 64
-    summary_freq: 50000
-    init_path: None
+    summary_freq: 10000
     threaded: false
 
     hyperparameters:
       batch_size: 1024
       buffer_size: 10240
-      learning_rate: 3e-4
-      beta: 5.0e-3
-      beta_schedule: learning_rate_schedule
+      learning_rate: 0.0003
+      beta: 0.01
+      beta_schedule: constant
       epsilon: 0.2
-      epsilon_schedule: learning_rate_schedule
+      epsilon_schedule: linear
       lambd: 0.95
       num_epoch: 3
       learning_rate_schedule: linear
@@ -29,7 +28,7 @@ behaviors:
       hidden_units: 128
       num_layers: 2
       vis_encode_type: simple
-      conditioning_type: hyper
+      conditioning_type: none
 
     reward_signals:
       extrinsic:

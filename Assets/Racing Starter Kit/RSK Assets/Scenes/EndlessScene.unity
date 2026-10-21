@@ -209,6 +209,11 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2293361448037609974, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4956954954255778322, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
         type: 3}
       propertyPath: m_Name
@@ -241,6 +246,14 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 2109136664}
+    - targetCorrespondingSourceObject: {fileID: 4956954954255778322, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2109136666}
+    - targetCorrespondingSourceObject: {fileID: 4956954954255778322, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2109136671}
   m_SourcePrefab: {fileID: 100100000, guid: 67f7e9c2d00e44d1a8bae5a09d2bc4ab, type: 3}
 --- !u!1001 &542019114
 PrefabInstance:
@@ -934,7 +947,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77f8e31b23908ea4c849e9d924c88d48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxSegmentTime: 10
+  maxSegmentTime: 67.4
   carAgent: {fileID: 2109136664}
 --- !u!1 &2042961141 stripped
 GameObject:
@@ -1237,6 +1250,10 @@ MonoBehaviour:
   trackGenerator: {fileID: 1638612973}
   spawnPoint: {fileID: 790989917}
   raceTimer: {fileID: 2042961144}
+  checkpointTimer: {fileID: 1927223034}
+  miniCheckpointTimeLimit: 5
+  checkpointReward: 1
+  speedRewardFactor: 0.02
 --- !u!114 &2109136665
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1250,24 +1267,69 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 60
-    NumStackedVectorObservations: 10
+    VectorObservationSize: 0
+    NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 3
+      m_NumContinuousActions: 2
       BranchSizes: 
-    VectorActionSize: 03000000
+    VectorActionSize: 02000000
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: My Behavior
+  m_BehaviorName: CarAgent
   TeamId: 0
   m_UseChildSensors: 1
   m_UseChildActuators: 1
   m_DeterministicInference: 0
   m_ObservableAttributeHandling: 0
+--- !u!114 &2109136666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109136658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SensorName: RoadSensor
+  m_DetectableTags:
+  - Road
+  - Checkpoint
+  m_RaysPerDirection: 35
+  m_MaxRayDegrees: 90.6
+  m_SphereCastRadius: 0.11
+  m_RayLength: 15
+  m_RayLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967291
+  m_ObservationStacks: 1
+  m_AlternatingRayOrder: 1
+  m_UseBatchedRaycasts: 0
+  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
+  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
+  m_StartVerticalOffset: 2
+  m_EndVerticalOffset: -1
+--- !u!114 &2109136671
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109136658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  DecisionPeriod: 1
+  DecisionStep: 0
+  TakeActionsBetweenDecisions: 1
 --- !u!1 &2128313450
 GameObject:
   m_ObjectHideFlags: 0
