@@ -132,4 +132,5 @@ results/
 
 # ML-Agents generated logs and checkpoints
 *.onnx
+!/[Aa]ssets/ML-Agents/CarAgent-1564601.onnx
 *.pt

@@ -1,0 +1,24 @@
+Modelldaten – CarAgent-1564601.onnx
+
+Trainingsstand: 1.564.601 Steps (Obergrenze: 2.000.000)
+Exportdatum: 24.10.2026
+Algorithmus: PPO
+Netzwerk: 2 versteckte Schichten mit je 128 Neuronen
+
+Eingaben: 302 Werte
+- 284 Werte vom Ray-Sensor
+- 18 zusätzliche Werte: Geschwindigkeit, Drehgeschwindigkeit, Zielrichtung,
+  Zielentfernung, Restzeit, Bodenkontakt und neun Bodenfühler
+
+Ausgaben: 2 kontinuierliche Aktionen
+- Lenkung
+- Gas / Bremse / Rückwärtsfahrt
+
+Entscheidung: alle 5 Physikschritte
+Kein LSTM / Gedächtnis
+
+Training: Lernrate 0,0003 (linear abnehmend), Batch 1.024,
+Buffer 10.240, Gamma 0,995, Time Horizon 128, Zeitskalierung 20x
+
+Letzter gespeicherter Reward: 118,37 (keine Erfolgsquote)
+Trainingsdateien (.pt) zum Fortsetzen sind im Transfer-ZIP enthalten.

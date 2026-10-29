@@ -16,8 +16,8 @@ namespace SpinMotion
             if (agent == null)
                 return;
 
-            collected = true;
-            agent.ReachMiniCheckpoint(this);
+            if (agent.ReachMiniCheckpoint(this))
+                collected = true;
         }
 
         public void ResetCheckpoint()

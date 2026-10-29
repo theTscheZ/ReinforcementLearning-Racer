@@ -9,10 +9,12 @@ namespace SpinMotion
         
         private float segmentStartTime;
         private bool running;
+        public float RemainingTimeNormalized => running && maxSegmentTime > 0f
+            ? Mathf.Clamp01(1f - GetCurrentSegmentTime() / maxSegmentTime) : 0f;
 
         private void Start()
         {
-            StartTimer();
+            if (!running) StartTimer();
         }
         
         private void Update()
@@ -22,8 +24,7 @@ namespace SpinMotion
                 Debug.LogWarning($"Segment time exceeded max time of {maxSegmentTime} seconds.");
                 // reset episode
                 running = false;
-                carAgent.AddReward(-1f);
-                carAgent.EndEpisode();
+                carAgent.AbortEpisode();
                 Debug.LogWarning("[RESET] CheckpointTimer: Zeitlimit");
             }
         }

@@ -4,6 +4,7 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Policies;
 
 namespace SpinMotion
 {
@@ -24,6 +25,17 @@ namespace SpinMotion
         private bool episodeEnding;
         
         private Rigidbody rb;
+        private WheelCollider[] wheels;
+
+        // Reconstructed from TRAINING.md in the 2026-10-24 transfer.
+        // Exact scales and probe spacing were not included in that export.
+        [Header("Reconstructed observation calibration")]
+        [SerializeField, Min(0.01f)] private float velocityScale = 25f;
+        [SerializeField, Min(0.01f)] private float yawRateScale = 5f;
+        [SerializeField, Min(0.01f)] private float targetDistanceScale = 100f;
+        [SerializeField, Min(0.01f)] private float roadProbeHalfWidth = 1f;
+        [SerializeField, Min(0.01f)] private float roadProbeHeight = 2f;
+        [SerializeField, Min(0.01f)] private float roadProbeDepth = 5f;
 
         public override void Initialize()
         {
@@ -31,6 +43,8 @@ namespace SpinMotion
                 car = GetComponent<CarController>();
             
             rb = GetComponent<Rigidbody>();
+            wheels = GetComponentsInChildren<WheelCollider>();
+            GetComponent<BehaviorParameters>().BrainParameters.VectorObservationSize = 18;
         }
 
         public void Update()
@@ -39,14 +53,7 @@ namespace SpinMotion
                 return;
             if (car.transform.position.y < -1f)
             {
-                if (checkpointTimer != null)
-                    checkpointTimer.StopTimer();
-                // Das Auto ist von der Strecke gefallen.
-                // Episode zurücksetzen.
-                episodeEnding = true;
-                AddReward(-1f);
-                Debug.LogWarning("[RESET] CarAgent: Auto gefallen");
-                EndEpisode();
+                AbortEpisode();
             }
         }
         
@@ -55,28 +62,65 @@ namespace SpinMotion
             timeSinceLastMiniCheckpoint += Time.fixedDeltaTime;
         }
 
+        public void AbortEpisode()
+        {
+            if (episodeEnding) return;
+            episodeEnding = true;
+            if (checkpointTimer != null) checkpointTimer.StopTimer();
+            AddReward(-1f);
+            EndEpisode();
+        }
+
         public override void CollectObservations(VectorSensor sensor)
         {
-            // // Checkpoint sicher prüfen
-            // if (targetCheckpoint == null)
-            // {
-            //     sensor.AddObservation(0f);
-            //     sensor.AddObservation(0f);
-            // }
-            // else
-            // {
-            //     Vector3 targetLocal = transform.InverseTransformPoint(
-            //         targetCheckpoint.position
-            //     );
-            //
-            //     sensor.AddObservation(
-            //         Mathf.Clamp(targetLocal.x / 50f, -1f, 1f)
-            //     );
-            //
-            //     sensor.AddObservation(
-            //         Mathf.Clamp(targetLocal.z / 100f, -1f, 1f)
-            //     );
-            // }
+            Vector3 velocity = transform.InverseTransformDirection(rb.linearVelocity);
+            sensor.AddObservation(Mathf.Clamp(velocity.x / velocityScale, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(velocity.y / velocityScale, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(velocity.z / velocityScale, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(
+                transform.InverseTransformDirection(rb.angularVelocity).y / yawRateScale, -1f, 1f));
+
+            Transform target = trackGenerator != null ? trackGenerator.targetCheckpoint : targetCheckpoint;
+            Vector3 delta = target != null
+                ? transform.InverseTransformDirection(target.position - transform.position)
+                : Vector3.zero;
+            delta.y = 0f;
+            Vector3 direction = delta.normalized;
+            sensor.AddObservation(direction.x);
+            sensor.AddObservation(direction.z);
+            sensor.AddObservation(Mathf.Clamp01(delta.magnitude / targetDistanceScale));
+            sensor.AddObservation(checkpointTimer != null ? checkpointTimer.RemainingTimeNormalized : 0f);
+            int grounded = 0;
+            foreach (WheelCollider wheel in wheels)
+                if (wheel.GetGroundHit(out WheelHit hit) && IsRoad(hit.collider)) grounded++;
+            sensor.AddObservation(wheels.Length > 0 ? (float)grounded / wheels.Length : 0f);
+
+            // Row-major: near/middle/far (0/4/8 m), then left/centre/right.
+            for (int row = 0; row < 3; row++)
+                for (int column = -1; column <= 1; column++)
+                    sensor.AddObservation(HasRoadBelow(column * roadProbeHalfWidth, row * 4f) ? 1f : 0f);
+        }
+
+        private static bool IsRoad(Collider collider)
+        {
+            return collider != null && collider.CompareTag("Road");
+        }
+
+        private bool HasRoadBelow(float lateral, float forward)
+        {
+            Vector3 origin = transform.position + transform.right * lateral
+                + transform.forward * forward + Vector3.up * roadProbeHeight;
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down,
+                roadProbeDepth, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            float nearest = float.PositiveInfinity;
+            Collider surface = null;
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider.transform.IsChildOf(transform) || hit.distance >= nearest) continue;
+                nearest = hit.distance;
+                surface = hit.collider;
+            }
+            return IsRoad(surface);
         }
 
         public override void OnActionReceived(
@@ -85,13 +129,13 @@ namespace SpinMotion
             float steering =
                 Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
 
-            float throttle =
-                Mathf.Clamp01(actions.ContinuousActions[1]);
+            float drive = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+            float throttle = Mathf.Max(0f, drive);
 
             // float brake =
             //     -Mathf.Clamp01(actions.ContinuousActions[2]);
 
-            car.Move(steering, throttle, 0f, 0f);
+            car.Move(steering, throttle, Mathf.Min(0f, drive), 0f);
             // Debug.Log(
             //     $"Agent Actions: steer={steering}, " +
             //     $"gas={throttle}, " //+
@@ -105,15 +149,10 @@ namespace SpinMotion
         public override void Heuristic(
             in ActionBuffers actionsOut)
         {
-            Debug.Log("DREH AN MEINEM ZIPPY");
             var actions = actionsOut.ContinuousActions;
 
             actions[0] = Input.GetAxis("Horizontal");
-            actions[1] = Input.GetAxis("Vertical") > 0f
-                ? Input.GetAxis("Vertical") : 0f;
-
-            actions[2] = Input.GetAxis("Vertical") < 0f
-                ? -Input.GetAxis("Vertical") : 0f;
+            actions[1] = Input.GetAxis("Vertical");
         }
         
         private void ResetCar()
@@ -124,6 +163,8 @@ namespace SpinMotion
             transform.SetPositionAndRotation(
                 spawnPoint.position,
                 spawnPoint.rotation);
+            car.ResetControlState();
+            Physics.SyncTransforms();
         }
         
         public override void OnEpisodeBegin()
@@ -154,8 +195,10 @@ namespace SpinMotion
         }
 
         
-        public void ReachMiniCheckpoint(MiniCheckpoint checkpoint)
+        public bool ReachMiniCheckpoint(MiniCheckpoint checkpoint)
         {
+            if (episodeEnding || trackGenerator == null || !trackGenerator.TryReachMiniCheckpoint(checkpoint))
+                return false;
             float elapsed = Mathf.Max(timeSinceLastMiniCheckpoint, 0.1f);
 
             // Grundreward für das Erreichen
@@ -178,6 +221,7 @@ namespace SpinMotion
 
             // Timer für den nächsten MiniCheckpoint zurücksetzen
             timeSinceLastMiniCheckpoint = 0f;
+            return true;
         }
 
     }

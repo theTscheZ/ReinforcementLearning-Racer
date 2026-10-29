@@ -34,10 +34,12 @@ namespace SpinMotion
 
         private Transform lastExit;
         private TrackSegment lastPlacedSegment;
+        private TrackSegment currentTargetSegment;
 
         private void Start()
         {
-            BuildInitialTrack();
+            if (activeSegments.Count == 0)
+                BuildInitialTrack();
         }
 
         // private void Update()
@@ -86,16 +88,13 @@ namespace SpinMotion
             }
 
             // Mindestens ein gültiges Prefab nötig (nicht null, Entry + Exit vorhanden).
+            if (useFixedSeed)
+                Random.InitState(seed);
             BuildShuffledPrefabOrder();
             if (prefabOrder.Count == 0)
             {
                 Debug.LogError("No valid segment prefab found (needs EntryPoint and ExitPoint).");
                 return;
-            }
-
-            if (useFixedSeed)
-            {
-                Random.InitState(seed);
             }
 
             ClearTrack();
@@ -130,7 +129,8 @@ namespace SpinMotion
                     break;
                 }
             }
-            targetCheckpoint = activeSegments[0].Checkpoint.transform;
+            currentTargetSegment = activeSegments[0];
+            targetCheckpoint = currentTargetSegment.CurrentTarget;
         }
 
         // Sucht das Startsegment, das schon in der Szene liegt:
@@ -453,6 +453,7 @@ namespace SpinMotion
             }
 
             segment.Checkpoint.Initialize(this, segment);
+            segment.ResetCheckpoints();
         }
 
         private void ClearTrack()
@@ -465,6 +466,8 @@ namespace SpinMotion
             activeSegments.Clear();
             lastExit = null;
             lastPlacedSegment = null;
+            currentTargetSegment = null;
+            targetCheckpoint = null;
         }
         
         public void ResetTrack()
@@ -488,6 +491,13 @@ namespace SpinMotion
                 return;
             }
 
+            // Keep the hand-placed start for the next episode.
+            if (segment == startSegmentPrefab && segment.gameObject.scene.IsValid())
+            {
+                segment.gameObject.SetActive(false);
+                return;
+            }
+
             // Destroy wirkt erst am Frame-Ende: sofort deaktivieren, damit
             // Collider des verworfenen Segments nicht mehr im Spiel "herumstehen".
             segment.gameObject.SetActive(false);
@@ -495,18 +505,21 @@ namespace SpinMotion
             Destroy(segment.gameObject);
         }
         
-        public void CheckpointReached(TrackSegment reachedSegment)
+        public bool TryReachMiniCheckpoint(MiniCheckpoint checkpoint)
         {
-            if (reachedSegment == null)
-            {
-                return;
-            }
-            
-            float segmentTime = checkpointTimer.CompleteSegment();
+            if (currentTargetSegment == null || !currentTargetSegment.TryReachMiniCheckpoint(checkpoint))
+                return false;
+            targetCheckpoint = currentTargetSegment.CurrentTarget;
+            return true;
+        }
 
-            Debug.Log(
-                $"Checkpoint reached! Segment time: {segmentTime:F2}s"
-            );
+        public bool CheckpointReached(TrackSegment reachedSegment)
+        {
+            if (reachedSegment == null || reachedSegment != currentTargetSegment
+                || !reachedSegment.AllMiniCheckpointsReached)
+            {
+                return false;
+            }
 
             int reachedIndex = activeSegments.IndexOf(reachedSegment);
 
@@ -516,7 +529,7 @@ namespace SpinMotion
                     $"[TRACK] Checkpoint reached for unknown segment '{reachedSegment.name}'."
                 );
 
-                return;
+                return false;
             }
 
             if (verboseLogging)
@@ -527,10 +540,18 @@ namespace SpinMotion
             }
 
             cpCounter++;
-            cpCounterText.text = "CP: " + cpCounter;
+            if (cpCounterText != null)
+                cpCounterText.text = "CP: " + cpCounter;
+
+            if (checkpointTimer != null)
+                checkpointTimer.CompleteSegment();
 
             RemoveSegmentsBefore(reachedSegment);
             EnsureTrackAhead();
+            int nextIndex = activeSegments.IndexOf(reachedSegment) + 1;
+            currentTargetSegment = nextIndex < activeSegments.Count ? activeSegments[nextIndex] : null;
+            targetCheckpoint = currentTargetSegment != null ? currentTargetSegment.CurrentTarget : null;
+            return true;
         }
     }
 }

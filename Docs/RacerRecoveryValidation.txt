@@ -1,0 +1,8 @@
+Unity 6000.0.84f1, isolated project copy, CPU/Burst inference.
+15 seconds of editor wall time at Time.timeScale=5, followed by reset/checkpoint/control assertions.
+Random track and stochastic policy: this is one smoke test, not a reliability benchmark.
+
+PASS: ONNX inference, 18 finite observations, 3 resets with targets, ordered mini and main checkpoints, target advance, four wheel brakes, release, reverse, control reset.
+Max displacement: 342,153 m
+Max segments: 15
+Observations: 0,0102616, -0,0003163464, 0,2091044, 0,1104687, -0,1010163, 0,9948847, 0,01820961, 0,9629006, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1

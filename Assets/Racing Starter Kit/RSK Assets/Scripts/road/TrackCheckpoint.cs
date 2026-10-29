@@ -52,9 +52,8 @@ namespace SpinMotion
                 return;
             }
             // Debug.Log($"Checkpoint '{name}' triggered by '{hitTransform.name}'.");
-            triggered = true;
-            
-            generator?.CheckpointReached(ownerSegment);
+            if (generator != null && generator.CheckpointReached(ownerSegment))
+                triggered = true;
         }
     }
 }

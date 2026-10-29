@@ -157,6 +157,8 @@ namespace SpinMotion
             m_WheelColliders[0].steerAngle = m_SteerAngle;
             m_WheelColliders[1].steerAngle = m_SteerAngle;
 
+            foreach (WheelCollider wheel in m_WheelColliders)
+                wheel.brakeTorque = 0f;
             SteerHelper();
             ApplyDrive(accel, footbrake);
             // Debug.Log(
@@ -174,11 +176,6 @@ namespace SpinMotion
                 m_WheelColliders[2].brakeTorque = hbTorque;
                 m_WheelColliders[3].brakeTorque = hbTorque;
             }
-            else
-            {
-                m_WheelColliders[2].brakeTorque = 0f;
-                m_WheelColliders[3].brakeTorque = 0f;
-            }
 
             CalculateRevs();
             GearChanging();
@@ -188,6 +185,21 @@ namespace SpinMotion
             TractionControl();
         }
 
+
+        public void ResetControlState()
+        {
+            foreach (WheelCollider wheel in m_WheelColliders)
+            {
+                wheel.motorTorque = 0f;
+                wheel.brakeTorque = 0f;
+                wheel.steerAngle = 0f;
+            }
+            AccelInput = BrakeInput = m_SteerAngle = 0f;
+            m_GearNum = 0;
+            m_GearFactor = 0f;
+            Revs = 0f;
+            m_OldRotation = transform.eulerAngles.y;
+        }
 
         private void CapSpeed()
         {
