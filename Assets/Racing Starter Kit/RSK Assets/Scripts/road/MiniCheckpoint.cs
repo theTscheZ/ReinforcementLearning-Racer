@@ -4,25 +4,14 @@ namespace SpinMotion
 {
     public class MiniCheckpoint : MonoBehaviour
     {
-        private bool collected;
-
         private void OnTriggerEnter(Collider other)
         {
-            if (collected)
-                return;
-
-            CarAgent agent = other.GetComponentInParent<CarAgent>();
-
-            if (agent == null)
-                return;
-
-            collected = true;
-            agent.ReachMiniCheckpoint(this);
+            var agent = other.GetComponentInParent<CarAgent>();
+            if (agent != null)
+                agent.ReachMiniCheckpoint(this);
         }
 
-        public void ResetCheckpoint()
-        {
-            collected = false;
-        }
+        // Collection state belongs to each racer, never to the shared trigger.
+        public void ResetCheckpoint() { }
     }
 }

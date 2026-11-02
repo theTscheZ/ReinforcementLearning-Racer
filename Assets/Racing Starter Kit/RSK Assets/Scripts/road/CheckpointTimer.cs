@@ -9,22 +9,21 @@ namespace SpinMotion
         
         private float segmentStartTime;
         private bool running;
+        public float RemainingFraction => running
+            ? Mathf.Clamp01(1f - GetCurrentSegmentTime() / Mathf.Max(0.1f, maxSegmentTime)) : 0f;
 
         private void Start()
         {
-            StartTimer();
+            if (!running)
+                StartTimer();
         }
         
         private void Update()
         {
             if (running && GetCurrentSegmentTime() >= maxSegmentTime)
             {
-                Debug.LogWarning($"Segment time exceeded max time of {maxSegmentTime} seconds.");
-                // reset episode
                 running = false;
-                carAgent.AddReward(-1f);
-                carAgent.EndEpisode();
-                Debug.LogWarning("[RESET] CheckpointTimer: Zeitlimit");
+                carAgent.FailEpisode("Timeout");
             }
         }
 
@@ -56,18 +55,7 @@ namespace SpinMotion
 
             segmentStartTime = Time.time;
             
-            // Grundreward für das Erreichen
-            float reward = 1f;
-
-            // Bonus für schnelles Erreichen
-            float speedBonus = Mathf.Clamp(
-                (maxSegmentTime - segmentTime) / maxSegmentTime,
-                0f,
-                1f
-            );
-
-            carAgent.AddReward(reward + speedBonus);
-            Debug.Log($"Reward: {reward + speedBonus}");
+            carAgent.ReachSegment(segmentTime);
 
             return segmentTime;
         }

@@ -8,15 +8,12 @@ namespace SpinMotion
         private EndlessTrackGenerator generator;
         private TrackSegment ownerSegment;
 
-        private bool triggered;
-
         public void Initialize(
             EndlessTrackGenerator generator,
             TrackSegment ownerSegment)
         {
             this.generator = generator;
             this.ownerSegment = ownerSegment;
-            triggered = false;
         }
 
         private void Awake()
@@ -35,11 +32,6 @@ namespace SpinMotion
 
         private void OnTriggerEnter(Collider other)
         {
-            if (triggered)
-            {
-                return;
-            }
-
             // Falls dein Auto einen Rigidbody auf einem Parent besitzt,
             // ist attachedRigidbody robuster als CompareTag direkt am Collider.
             Transform hitTransform =
@@ -47,14 +39,9 @@ namespace SpinMotion
                     ? other.attachedRigidbody.transform
                     : other.transform;
 
-            if (!hitTransform.CompareTag("Player"))
-            {
-                return;
-            }
-            // Debug.Log($"Checkpoint '{name}' triggered by '{hitTransform.name}'.");
-            triggered = true;
-            
-            generator?.CheckpointReached(ownerSegment);
+            var agent = hitTransform.GetComponent<CarAgent>();
+            if (agent != null && generator != null)
+                generator.CheckpointReached(agent, ownerSegment);
         }
     }
 }

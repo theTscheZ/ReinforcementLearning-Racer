@@ -133,3 +133,10 @@ results/
 # ML-Agents generated logs and checkpoints
 *.onnx
 *.pt
+
+# Exported inference models belong to the project; training checkpoints stay ignored.
+!/Assets/ML-Agents/Models/*.onnx
+
+# Automatically generated Unity ML-Agents timing reports.
+/Assets/ML-Agents/Timers/
+/Assets/ML-Agents/Timers.meta

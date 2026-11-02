@@ -55,13 +55,29 @@ namespace SpinMotion
         public float Revs { get; private set; }
         public float AccelInput { get; private set; }
 
+        public void ResetControlState()
+        {
+            m_OldRotation = transform.eulerAngles.y;
+            m_CurrentTorque = m_FullTorqueOverAllWheels * (1f - m_TractionControl);
+            m_GearNum = 0;
+            m_GearFactor = 0f;
+            m_SteerAngle = 0f;
+            AccelInput = BrakeInput = Revs = 0f;
+            foreach (var wheel in m_WheelColliders)
+            {
+                wheel.motorTorque = 0f;
+                wheel.brakeTorque = 0f;
+                wheel.steerAngle = 0f;
+            }
+        }
+
         // wiring with AICarAvoidanceBehaviour:
         [HideInInspector] public int forceSteering = 0;
         [HideInInspector] public float forceSteeringFactor = 0.1f;
         [HideInInspector] public int forceBraking = 0;
 
-        // Use this for initialization
-        private void Start()
+        // Initialize before dynamically spawned agents can receive their first action.
+        private void Awake()
         {
             m_WheelColliders[0].attachedRigidbody.centerOfMass = m_CentreOfMassOffset;
 
@@ -158,6 +174,9 @@ namespace SpinMotion
             m_WheelColliders[1].steerAngle = m_SteerAngle;
 
             SteerHelper();
+            // Clear stale brake torque before ApplyDrive sets this step's footbrake.
+            for (int i = 0; i < 4; i++)
+                m_WheelColliders[i].brakeTorque = 0f;
             ApplyDrive(accel, footbrake);
             // Debug.Log(
             //     $"Gas={accel:F2}, Torque={m_CurrentTorque:F1}, " +
@@ -173,11 +192,6 @@ namespace SpinMotion
                 var hbTorque = handbrake*m_MaxHandbrakeTorque;
                 m_WheelColliders[2].brakeTorque = hbTorque;
                 m_WheelColliders[3].brakeTorque = hbTorque;
-            }
-            else
-            {
-                m_WheelColliders[2].brakeTorque = 0f;
-                m_WheelColliders[3].brakeTorque = 0f;
             }
 
             CalculateRevs();
