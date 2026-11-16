@@ -21,6 +21,8 @@ namespace SpinMotion
             public int mini;
         }
         private readonly Dictionary<CarAgent, RacerProgress> racers = new();
+        private TrackSegment raceStartSegment;
+        private Vector3 raceStartPosition;
         public Transform targetCheckpoint => GetTarget(player != null ? player.GetComponent<CarAgent>() : null);
 
         public void RegisterRacer(CarAgent agent)
@@ -115,6 +117,37 @@ namespace SpinMotion
             return route.mini < route.segment.MiniCheckpointCount
                 ? route.segment.MiniCheckpointAt(route.mini).transform
                 : route.segment.Checkpoint.transform;
+        }
+
+        public bool TryGetRacePosition(CarAgent agent, out float distance, out Vector3 direction)
+        {
+            distance = 0f;
+            direction = Vector3.zero;
+            if (!racers.TryGetValue(agent, out var route))
+                return false;
+
+            // Sum the same checkpoint-to-checkpoint road lengths for each racer.
+            // The relative distance stays the same when old segments are trimmed.
+            foreach (var segment in activeSegments)
+            {
+                Vector3 from = segment == raceStartSegment ? raceStartPosition : segment.EntryPoint.position;
+                for (int mini = 0; mini <= segment.MiniCheckpointCount; mini++)
+                {
+                    Vector3 to = mini == segment.MiniCheckpointCount ? segment.Checkpoint.transform.position
+                        : segment.MiniCheckpointAt(mini).transform.position;
+                    Vector3 leg = Vector3.ProjectOnPlane(to - from, Vector3.up);
+                    float length = leg.magnitude;
+                    if (segment == route.segment && mini == route.mini)
+                    {
+                        direction = leg.normalized;
+                        distance += Mathf.Clamp(Vector3.Dot(agent.transform.position - from, direction), 0f, length);
+                        return length > 0.01f;
+                    }
+                    distance += length;
+                    from = to;
+                }
+            }
+            return false;
         }
 
         [Header("Randomness")]
@@ -216,7 +249,9 @@ namespace SpinMotion
             activeSegments.Add(startSegment);
             InitializeSegment(startSegment);
             // The starting car can be partway into the start segment.
-            startSegment.ResetCheckpoints(player.position);
+            raceStartSegment = startSegment;
+            raceStartPosition = player.position;
+            startSegment.ResetCheckpoints(raceStartPosition);
             RegisterRacer(player.GetComponent<CarAgent>());
 
             // Collider-Bounds sind sonst noch auf der Prefab-Position (Physics synchronisiert erst später).

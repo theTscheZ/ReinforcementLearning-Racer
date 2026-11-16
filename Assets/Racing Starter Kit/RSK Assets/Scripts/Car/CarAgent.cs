@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.InferenceEngine;
 using Unity.MLAgents;
@@ -36,6 +37,17 @@ namespace SpinMotion
         [SerializeField] private bool randomizeOpponentStart;
         [SerializeField] private Vector2 opponentForwardRange = new Vector2(0f, 6f);
         [SerializeField] private bool isOpponent;
+        [Header("Grid training")]
+        [SerializeField] private bool trainWithGrid;
+        [Min(0f), SerializeField] private float overtakeReward = 1f;
+        [Min(0f), SerializeField] private float relativeSpeedRewardPerMetre = 0.03f;
+        private static readonly Vector3[] GridOffsets =
+        {
+            new(-2.5f, 0f, 4f), new(2.5f, 0f, 4f), new(0f, 0f, 8f)
+        };
+        private readonly HashSet<CarAgent> rivalsAhead = new();
+        private readonly HashSet<CarAgent> passedRivals = new();
+        private float raceSpeedReward;
         [Header("Opponent training presence")]
         [SerializeField] private bool maintainOpponentPresence = true;
         [Min(8f), SerializeField] private float opponentMaxDistance = 15f;
@@ -52,7 +64,7 @@ namespace SpinMotion
         private Quaternion rejoinRotation;
         private TrackSegment rejoinSegment;
         private int rejoinMini;
-        private CarAgent opponent;
+        private readonly List<CarAgent> opponents = new();
         public bool IsOpponent => isOpponent;
         public bool IsRacing => !episodeEnding && gameObject.activeInHierarchy;
         public float SegmentElapsed => segmentElapsed;
@@ -124,6 +136,8 @@ namespace SpinMotion
                 behavior.BehaviorType = BehaviorType.Default;
                 Debug.LogWarning("Removed the incompatible legacy model. Start the trainer or use Racer > Race two trained models.", this);
             }
+            if (trainWithGrid && TryGetComponent<CarUserControl>(out var userControl))
+                userControl.enabled = false;
             base.OnEnable();
         }
 
@@ -159,6 +173,8 @@ namespace SpinMotion
             roadContactSum += groundedFraction;
             roadContactSamples++;
             float forwardProgress = AwardForwardTravel(transform.position - lastPosition, groundedFraction);
+            if (trainWithGrid && !isOpponent && groundedFraction >= 0.5f)
+                AwardRaceRewards(forwardProgress);
             float targetProgress = 0f;
 
             // Only pay for new closest approach on the road. Reversing and driving
@@ -215,6 +231,49 @@ namespace SpinMotion
             forwardDistanceReward += distanceReward;
             forwardSpeedReward += speedBonus;
             return metres;
+        }
+
+        private void AwardRaceRewards(float forwardMetresThisStep)
+        {
+            const float passClearance = 2f;
+            const float rivalRange = 20f;
+            if (!trackGenerator.TryGetRacePosition(this, out float distance, out Vector3 direction))
+                return;
+
+            float speed = Vector3.Dot(rb.linearVelocity, direction);
+            float rivalSpeedSum = 0f;
+            int nearbyRivals = 0;
+            foreach (var rival in opponents)
+            {
+                if (rival == null || !rival.IsRacing ||
+                    !trackGenerator.TryGetRacePosition(rival, out float rivalDistance, out Vector3 rivalDirection))
+                    continue;
+
+                float lead = distance - rivalDistance;
+                if (Mathf.Abs(lead) > rivalRange || rival.GroundedRoadFraction() < 0.5f)
+                {
+                    rivalsAhead.Remove(rival);
+                    continue;
+                }
+
+                if (lead <= -passClearance)
+                    rivalsAhead.Add(rival);
+                else if (lead >= passClearance && forwardMetresThisStep > 0f &&
+                    rivalsAhead.Remove(rival) && passedRivals.Add(rival))
+                    AddReward(overtakeReward);
+
+                rivalSpeedSum += Mathf.Max(0f, Vector3.Dot(rival.rb.linearVelocity, rivalDirection));
+                nearbyRivals++;
+            }
+
+            if (nearbyRivals == 0 || forwardMetresThisStep <= 0f)
+                return;
+
+            float speedAdvantage = speed - rivalSpeedSum / nearbyRivals;
+            float reward = forwardMetresThisStep * relativeSpeedRewardPerMetre *
+                Mathf.Clamp01(speedAdvantage / Mathf.Max(0.1f, speedRewardReference));
+            AddReward(reward);
+            raceSpeedReward += reward;
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -337,33 +396,43 @@ namespace SpinMotion
                 nextOpponentRejoin = Time.time + opponentRepositionCooldown;
                 nextOpponentSample = Time.time;
                 RecordParameters();
-                if (spawnOpponent)
+                rivalsAhead.Clear();
+                passedRivals.Clear();
+                raceSpeedReward = 0f;
+                ResetOpponents();
+            }
+        }
+
+        private void ResetOpponents()
+        {
+            int count = !spawnOpponent || opponentModel == null ? 0 : trainWithGrid ? GridOffsets.Length : 1;
+            if (spawnOpponent && opponentModel == null)
+                Debug.LogError("Assign the trained legacy model as Opponent Model.", this);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (i == opponents.Count)
+                    opponents.Add(CreateOpponent(i));
+                else
                 {
-                    if (opponent == null)
-                        CreateOpponent();
-                    else
-                    {
-                        opponent.gameObject.SetActive(true);
-                        opponent.EndEpisode();
-                    }
+                    CarAgent rival = opponents[i];
+                    rival.gameObject.SetActive(true);
+                    rival.EndEpisode();
                 }
-                else if (opponent != null)
-                {
-                    trackGenerator.RemoveRacer(opponent);
-                    opponent.gameObject.SetActive(false);
-                }
+            }
+            for (int i = count; i < opponents.Count; i++)
+            {
+                trackGenerator.RemoveRacer(opponents[i]);
+                opponents[i].gameObject.SetActive(false);
             }
         }
 
         private void MaintainOpponent()
         {
-            if (!spawnOpponent || !maintainOpponentPresence || trackGenerator == null)
-                return;
-            if (opponent == null)
-                CreateOpponent();
-            if (opponent == null)
+            if (!spawnOpponent || !maintainOpponentPresence || trainWithGrid || opponents.Count == 0 || trackGenerator == null)
                 return;
 
+            CarAgent opponent = opponents[0];
             bool active = opponent.IsRacing;
             float distance = FlatDistance(transform.position, opponent.transform.position);
             if (Time.time >= nextOpponentSample)
@@ -379,7 +448,7 @@ namespace SpinMotion
                 return;
             if (GroundedRoadFraction() < 0.5f)
                 return;
-            bool rejoined = TryRejoinOpponent();
+            bool rejoined = TryRejoinOpponent(opponent);
             Academy.Instance.StatsRecorder.Add("Opponent/Placement Unavailable", rejoined ? 0f : 1f);
             nextOpponentRejoin = Time.time + (rejoined ? opponentRepositionCooldown : 0.25f);
             if (rejoined)
@@ -401,7 +470,7 @@ namespace SpinMotion
             return false;
         }
 
-        private bool TryRejoinOpponent()
+        private bool TryRejoinOpponent(CarAgent opponent)
         {
             if (!trackGenerator.TryRoadHeight(transform.position, out float playerGround))
                 return false;
@@ -497,21 +566,22 @@ namespace SpinMotion
             Debug.LogError("Could not separate opponent spawn from the player. Check the start grid.", this);
         }
 
-        private void CreateOpponent()
+        private CarAgent CreateOpponent(int gridIndex)
         {
-            if (opponentModel == null)
-            {
-                Debug.LogError("Assign the trained legacy model as Opponent Model.", this);
-                return;
-            }
             // Keep the clone inactive until its policy and role are configured.
             var staging = new GameObject("Opponent setup");
             staging.SetActive(false);
             var clone = Instantiate(gameObject, staging.transform);
             clone.SetActive(false);
-            opponent = clone.GetComponent<CarAgent>();
+            var opponent = clone.GetComponent<CarAgent>();
             opponent.isOpponent = true;
             opponent.spawnOpponent = false;
+            opponent.trainWithGrid = false;
+            if (trainWithGrid)
+            {
+                opponent.randomizeOpponentStart = false;
+                opponent.opponentSpawnOffset = GridOffsets[gridIndex];
+            }
             opponent.compactTrainingSensors = false;
             opponent.car = clone.GetComponent<CarController>();
             opponent.raceTimer = null;
@@ -524,11 +594,13 @@ namespace SpinMotion
             behavior.BehaviorName = "RacerOpponent";
             behavior.Model = opponentModel;
             behavior.BehaviorType = BehaviorType.InferenceOnly;
+            if (clone.TryGetComponent<CarUserControl>(out var userControl))
+                userControl.enabled = false;
             foreach (var camera in clone.GetComponentsInChildren<Camera>(true))
                 camera.enabled = false;
             foreach (var listener in clone.GetComponentsInChildren<AudioListener>(true))
                 listener.enabled = false;
-            clone.name = "Trained model opponent";
+            clone.name = trainWithGrid ? $"Trained model opponent {gridIndex + 1}" : "Trained model opponent";
             clone.transform.SetParent(transform.parent);
             // Agent's first OnEpisodeBegin can be deferred until the next Academy reset.
             // Place the inactive body BEFORE activation, so it never occupies the player's pose.
@@ -540,6 +612,7 @@ namespace SpinMotion
                 if (paint.TryGetComponent<Renderer>(out var renderer))
                     renderer.material.color = new Color(1f, 0.25f, 0.05f);
             Destroy(staging);
+            return opponent;
         }
 
         private void RecordParameters()
@@ -657,6 +730,12 @@ namespace SpinMotion
                 stats.Add("Opponent/Rejoins Per Episode", opponentRejoins);
                 stats.Add("Opponent/Failure Rejoins Per Episode", opponentFailureRejoins);
                 stats.Add("Opponent/Distance Rejoins Per Episode", opponentDistanceRejoins);
+            }
+            if (trainWithGrid)
+            {
+                stats.Add("Racer/Overtakes", passedRivals.Count);
+                stats.Add("Rewards/Overtake", passedRivals.Count * overtakeReward);
+                stats.Add("Rewards/Relative Speed", raceSpeedReward);
             }
             stats.Add("Racer/Mini Checkpoints", miniCheckpointsReached);
             stats.Add("Racer/Segments", segmentsReached);

@@ -2,19 +2,15 @@
 
 ## Szene und Trainingsmodi
 
-Die aktuell gespeicherte `EndlessScene` steht auf Gegnertraining: `Spawn Opponent`
-und `Maintain Opponent Presence` ein, `Behavior Type = Default`, Model leer,
-Straßen-Sensor 5 Rays pro Richtung, zusätzlicher TrafficSensor aktiv. Für einen
-neuen Solo-Lauf zuerst `Racer > Training > 1 - Solo` wählen. Das gespeicherte
-Gegnertraining setzt bereits gelernte Solo-Gewichte voraus; Startbefehle siehe unten.
-Zuerst den Python-Trainer starten, erst dann Unity Play drücken. Ohne Trainer
-verwendet `Default` die Tastatur-Heuristik; das ist kein trainiertes Fahrverhalten.
+Auf dem Branch `codex/grid-race-training` ist `EndlessScene` bereits für drei
+Gegner eingestellt. Für andere Modi vor dem Start das passende Profil im
+Unity-Menü **Racer** wählen. Den Python-Trainer vor Unity **Play** starten.
 
 Für ein Demo-Rennen zuerst einen der Racer-Rennmodi wählen. Der orange Gegner
 verwendet weiterhin `CarAgent-1564601.onnx` mit seinen ursprünglichen Sensoren
 und wird nicht mittrainiert.
 
-Im Unity-Menü **Racer** gibt es vier Modi (vor Play auswählen):
+Im Unity-Menü **Racer** gibt es folgende Modi (vor Play auswählen):
 
 - **Race two trained models**: beide Wagen benutzen das vorhandene Modell.
 - **Race against trained model (keyboard)**: Lenken/Gas über Horizontal/Vertical
@@ -23,15 +19,50 @@ Im Unity-Menü **Racer** gibt es vier Modi (vor Play auswählen):
   Sensoren, kein Gegner. Hier beginnen.
 - **Training > 2 - With opponent (continue compact model)**: dasselbe Sensorformat,
   trainierter Gegner mit wechselnden Startpositionen. Mit dem Solo-Modell fortsetzen.
+- **Training > 3 - Grid race (3 opponents)**: drei Gegner mit festen Startplätzen
+  und zusätzlichen Renn-Rewards. Mit der Fahrpolicy aus `CarAgent-2000011.onnx` starten.
+
+## Training mit drei Gegnern
+
+Auf diesem Branch in Unity 6000.0.84f1 die `EndlessScene` öffnen. Nach einem
+Profilwechsel lässt sich das Grid über **Racer > Training > 3 - Grid race
+(3 opponents)** wieder einstellen.
+Der Lernwagen behält die 44 Straßen-Raywerte, 27 Traffic-Raywerte und 18 Vektorwerte
+des Solo-Modells. Die drei Gegner fahren mit dem festen Modell `CarAgent-1564601`.
+Nach einem Ausfall startet der betroffene Gegner beim nächsten Episodenstart wieder
+von seinem festen Platz. Der Kurs wird wie bisher pro Episode generiert.
+
+Auf einem frischen Windows-x64-Checkout mit Python 3.10.11 im Projektordner
+einmal `& .\TrainingEnvironment\Restore-Venv.ps1` ausführen. Beide benötigten
+ONNX-Modelle sind im Repository. Danach den Start-Checkpoint erzeugen und den
+Trainer starten.
+
+```powershell
+& .\.venv\Scripts\python.exe .\TrainingEnvironment\Prepare-GridSeed.py
+& .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_01 --initialize-from=CarRacer_GridSeed_2000011
+```
+
+Sobald der Trainer auf Unity wartet, **Play** drücken. Das Skript übernimmt die
+Fahrgewichte aus `CarAgent-2000011.onnx` und prüft die deterministischen Aktionen
+vor dem Speichern des Start-Checkpoints. Value-Netz und Optimizer starten frisch.
+Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_01`
+verwenden und `--initialize-from` weglassen.
+
+- **Überholen** bringt standardmäßig `+1` pro Gegner und Episode. Beide Autos
+  müssen auf der Straße sein. Der Lernwagen muss von mindestens 2 m Rückstand
+  auf mindestens 2 m Vorsprung kommen und dabei vorwärts Strecke machen.
+- **Relatives Tempo** gibt bis zu `+0,03` pro neuem Vorwärtsmeter auf der Straße.
+  Der Bonus steigt mit dem Tempovorsprung gegenüber dem Durchschnitt der Gegner
+  innerhalb von 20 m entlang der Strecke. Die vorhandenen Rewards laufen weiter.
+
+TensorBoard zeigt `Racer/Overtakes`, `Rewards/Overtake` und `Rewards/Relative Speed`.
 
 Die Menübefehle markieren die Szene als geändert; bei Bedarf speichern.
-Der Gegner startet mit einstellbarem Versatz `(2.5, 0, 0)` relativ zum Spawn.
+Im Profil mit einem Gegner gilt der einstellbare Startversatz `(2.5, 0, 0)`.
 Jeder Wagen sammelt seine eigenen Checkpoints in Reihenfolge. Die Straße bleibt
-unter dem langsameren Wagen erhalten. Im Gegner-Trainingsmodus wird ein
-abgestürzter oder weit entfernter Gegner automatisch nahe dem Hauptwagen wieder
-eingesetzt. In den Demo-Rennen wartet ein gescheiterter Gegner weiter auf die
-nächste Episode. Scheitert der Hauptwagen, starten beide samt Strecke neu.
-Es gibt keine zusätzliche Siegprämie auf der endlosen Strecke.
+unter den langsameren Wagen erhalten. Das Trainingsprofil mit einem Gegner setzt
+abgestürzte oder weit entfernte Gegner nahe dem Hauptwagen wieder ein. Scheitert
+der Hauptwagen, starten alle Wagen auf einer neu generierten Strecke.
 
 ## Positive, zeitabhängige Rewards
 

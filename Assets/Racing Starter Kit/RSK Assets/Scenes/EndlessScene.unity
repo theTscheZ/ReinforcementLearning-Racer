@@ -1336,10 +1336,13 @@ MonoBehaviour:
   opponentModel: {fileID: 5022602860645237092, guid: 44bd26c7bdb5e124598f7ad7fe4e19ac,
     type: 3}
   opponentSpawnOffset: {x: 2.5, y: 0, z: 0}
-  randomizeOpponentStart: 1
+  randomizeOpponentStart: 0
   opponentForwardRange: {x: 0, y: 6}
   isOpponent: 0
-  maintainOpponentPresence: 1
+  trainWithGrid: 1
+  overtakeReward: 1
+  relativeSpeedRewardPerMetre: 0.03
+  maintainOpponentPresence: 0
   opponentMaxDistance: 15
   opponentRespawnDelay: 0.5
   opponentRepositionCooldown: 1
@@ -1370,7 +1373,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 41fb10690511a664bbaa750fa3bde7fd, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 2
   m_BehaviorType: 0
   m_BehaviorName: CarAgent

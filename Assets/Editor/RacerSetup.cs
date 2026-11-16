@@ -14,13 +14,16 @@ public static class RacerSetup
     [MenuItem("Racer/Training/2 - With opponent (continue compact model)")]
     public static void TrainingWithOpponent() => Configure(true, false, true);
 
+    [MenuItem("Racer/Training/3 - Grid race (3 opponents)")]
+    public static void GridTraining() => Configure(true, false, true, gridTraining: true);
+
     [MenuItem("Racer/Race against trained model (keyboard)")]
     public static void KeyboardRace() => Configure(false, true, true);
 
     [MenuItem("Racer/Race two trained models")]
     public static void ModelRace() => Configure(false, false, true);
 
-    private static void Configure(bool training, bool keyboard, bool withOpponent)
+    private static void Configure(bool training, bool keyboard, bool withOpponent, bool gridTraining = false)
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)
             throw new System.InvalidOperationException("Stop Play Mode before changing the sensor profile.");
@@ -68,8 +71,9 @@ public static class RacerSetup
         var serialized = new SerializedObject(agent);
         serialized.FindProperty("compactTrainingSensors").boolValue = training;
         serialized.FindProperty("spawnOpponent").boolValue = withOpponent;
-        serialized.FindProperty("maintainOpponentPresence").boolValue = training && withOpponent;
-        serialized.FindProperty("randomizeOpponentStart").boolValue = training && withOpponent;
+        serialized.FindProperty("trainWithGrid").boolValue = gridTraining;
+        serialized.FindProperty("maintainOpponentPresence").boolValue = training && withOpponent && !gridTraining;
+        serialized.FindProperty("randomizeOpponentStart").boolValue = training && withOpponent && !gridTraining;
         serialized.FindProperty("opponentModel").objectReferenceValue = model;
         serialized.ApplyModifiedProperties();
         rays.RaysPerDirection = training ? 5 : 35;
@@ -82,7 +86,9 @@ public static class RacerSetup
         EditorUtility.SetDirty(behavior);
         EditorUtility.SetDirty(rays);
         EditorSceneManager.MarkSceneDirty(agent.gameObject.scene);
-        Debug.Log(training
+        Debug.Log(gridTraining
+            ? "Grid training: three legacy-model opponents at fixed start positions. Initialize the learner from the NativeSolo policy."
+            : training
             ? (withOpponent
                 ? "Opponent training: same 18 vector + 44 road + 27 traffic observations as solo; continue the compact checkpoint. Randomized opponent starts."
                 : "Solo training: 11 road rays, 9 ground probes, 9 traffic rays (no opponent); 18 vector observations. New run for this profile.")
