@@ -819,7 +819,8 @@ namespace SpinMotion
             episodeEnding = true;
             if (checkpointTimer != null)
                 checkpointTimer.StopTimer();
-            bool recoverIndividually = trainWithGrid || (raceOwner != null && raceOwner.trainWithGrid);
+            bool recoverIndividually = isOpponent ? raceOwner != null && raceOwner.trainWithGrid
+                : trainWithGrid && reason != "Stuck";
             if (recoverIndividually)
             {
                 opponentFailureTime = Time.time;

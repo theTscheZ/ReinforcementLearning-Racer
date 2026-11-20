@@ -31,10 +31,11 @@ Der Lernwagen behält die 44 Straßen-Raywerte, 27 Traffic-Raywerte und 18 Vekto
 des Solo-Modells. Die drei Gegner fahren mit dem festen Modell `CarAgent-1564601`.
 Ein Gegner setzt nach einem Sturz, Stillstand, Timeout oder bei mehr als 15 m
 Abstand auf einem freien Stück der Strecke vor dem Lernwagen wieder ein. Der
-Startpunkt hält mindestens 4 m Abstand zu den übrigen Wagen. Wenn der Lernwagen
-ausfällt, setzt er nahe seinem letzten Checkpoint wieder ein und seine nächste
-ML-Agents-Episode beginnt. Die festen Startplätze gelten beim Aufbau einer neuen
-Strecke.
+Startpunkt hält mindestens 4 m Abstand zu den übrigen Wagen. Acht Sekunden ohne
+Fortschritt beim Lernwagen beenden seine Trainingsepisode. Die nächste Episode
+beginnt auf einer neu generierten Strecke mit allen Wagen auf ihren festen
+Startplätzen. Bei anderen Ausfällen des Lernwagens beginnt seine nächste
+ML-Agents-Episode beim Wiedereinstieg nahe seinem letzten Checkpoint.
 
 Auf einem frischen Windows-x64-Checkout mit Python 3.10.11 im Projektordner
 einmal `& .\TrainingEnvironment\Restore-Venv.ps1` ausführen. Beide benötigten
