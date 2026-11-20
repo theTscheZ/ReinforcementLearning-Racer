@@ -39,14 +39,35 @@ namespace SpinMotion
         [SerializeField] private bool isOpponent;
         [Header("Grid training")]
         [SerializeField] private bool trainWithGrid;
-        [Min(0f), SerializeField] private float overtakeReward = 1f;
+        [Min(0f), SerializeField] private float overtakeReward = 0.25f;
+        [Min(0f), SerializeField] private float cleanOvertakeBonus = 0.75f;
+        [Min(0f), SerializeField] private float rivalCollisionPenalty = 0.5f;
+        [Min(0f), SerializeField] private float collisionSpeedThreshold = 2f;
         [Min(0f), SerializeField] private float relativeSpeedRewardPerMetre = 0.03f;
         private static readonly Vector3[] GridOffsets =
         {
             new(-2.5f, 0f, 4f), new(2.5f, 0f, 4f), new(0f, 0f, 8f)
         };
-        private readonly HashSet<CarAgent> rivalsAhead = new();
+        private sealed class RivalInteraction
+        {
+            public bool startedBehind;
+            public bool touchedDuringPass;
+            public float secondsAhead;
+            public int contacts;
+            public bool collisionPenalized;
+
+            public void CancelPass()
+            {
+                startedBehind = false;
+                touchedDuringPass = false;
+                secondsAhead = 0f;
+            }
+        }
+
+        private readonly Dictionary<CarAgent, RivalInteraction> rivalInteractions = new();
         private readonly HashSet<CarAgent> passedRivals = new();
+        private int cleanOvertakes;
+        private int rivalCollisions;
         private float raceSpeedReward;
         [Header("Opponent training presence")]
         [SerializeField] private bool maintainOpponentPresence = true;
@@ -177,8 +198,14 @@ namespace SpinMotion
             roadContactSum += groundedFraction;
             roadContactSamples++;
             float forwardProgress = AwardForwardTravel(transform.position - lastPosition, groundedFraction);
-            if (trainWithGrid && !isOpponent && groundedFraction >= 0.5f)
-                AwardRaceRewards(forwardProgress);
+            if (trainWithGrid && !isOpponent)
+            {
+                if (groundedFraction >= 0.5f)
+                    AwardRaceRewards(forwardProgress);
+                else
+                    foreach (var interaction in rivalInteractions.Values)
+                        interaction.CancelPass();
+            }
             float targetProgress = 0f;
 
             // Only pay for new closest approach on the road. Reversing and driving
@@ -249,22 +276,24 @@ namespace SpinMotion
             int nearbyRivals = 0;
             foreach (var rival in opponents)
             {
-                if (rival == null || !rival.IsRacing ||
-                    !trackGenerator.TryGetRacePosition(rival, out float rivalDistance, out Vector3 rivalDirection))
+                if (rival == null)
                     continue;
+                var interaction = GetRivalInteraction(rival);
+                if (!rival.IsRacing ||
+                    !trackGenerator.TryGetRacePosition(rival, out float rivalDistance, out Vector3 rivalDirection))
+                {
+                    interaction.CancelPass();
+                    continue;
+                }
 
                 float lead = distance - rivalDistance;
                 if (Mathf.Abs(lead) > rivalRange || rival.GroundedRoadFraction() < 0.5f)
                 {
-                    rivalsAhead.Remove(rival);
+                    interaction.CancelPass();
                     continue;
                 }
 
-                if (lead <= -passClearance)
-                    rivalsAhead.Add(rival);
-                else if (lead >= passClearance && forwardMetresThisStep > 0f &&
-                    rivalsAhead.Remove(rival) && passedRivals.Add(rival))
-                    AddReward(overtakeReward);
+                TrackOvertake(rival, interaction, lead, forwardMetresThisStep, passClearance);
 
                 rivalSpeedSum += Mathf.Max(0f, Vector3.Dot(rival.rb.linearVelocity, rivalDirection));
                 nearbyRivals++;
@@ -278,6 +307,76 @@ namespace SpinMotion
                 Mathf.Clamp01(speedAdvantage / Mathf.Max(0.1f, speedRewardReference));
             AddReward(reward);
             raceSpeedReward += reward;
+        }
+
+        private RivalInteraction GetRivalInteraction(CarAgent rival)
+        {
+            if (!rivalInteractions.TryGetValue(rival, out var interaction))
+            {
+                interaction = new RivalInteraction();
+                rivalInteractions.Add(rival, interaction);
+            }
+            return interaction;
+        }
+
+        private void TrackOvertake(CarAgent rival, RivalInteraction interaction, float lead,
+            float forwardMetresThisStep, float passClearance)
+        {
+            if (passedRivals.Contains(rival))
+                return;
+            if (lead <= -passClearance && !interaction.startedBehind)
+            {
+                interaction.startedBehind = true;
+                interaction.touchedDuringPass = interaction.contacts > 0;
+            }
+            if (lead < passClearance)
+                interaction.secondsAhead = 0f;
+            if (!interaction.startedBehind || lead < passClearance || forwardMetresThisStep <= 0f)
+                return;
+
+            interaction.secondsAhead += Time.fixedDeltaTime;
+            if (interaction.secondsAhead < 0.3f)
+                return;
+
+            passedRivals.Add(rival);
+            AddReward(overtakeReward);
+            if (!interaction.touchedDuringPass)
+            {
+                AddReward(cleanOvertakeBonus);
+                cleanOvertakes++;
+            }
+            interaction.CancelPass();
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (!trainWithGrid || isOpponent || episodeEnding || collision.rigidbody == null ||
+                !collision.rigidbody.TryGetComponent<CarAgent>(out var rival) || !opponents.Contains(rival))
+                return;
+
+            var interaction = GetRivalInteraction(rival);
+            interaction.contacts++;
+            if (interaction.startedBehind)
+                interaction.touchedDuringPass = true;
+            if (!interaction.collisionPenalized && collision.relativeVelocity.magnitude >= collisionSpeedThreshold)
+            {
+                interaction.collisionPenalized = true;
+                rivalCollisions++;
+                AddReward(-rivalCollisionPenalty);
+            }
+        }
+
+        private void OnCollisionExit(Collision collision)
+        {
+            if (!trainWithGrid || collision.rigidbody == null ||
+                !collision.rigidbody.TryGetComponent<CarAgent>(out var rival) ||
+                !rivalInteractions.TryGetValue(rival, out var interaction))
+                return;
+
+            if (interaction.contacts > 0)
+                interaction.contacts--;
+            if (interaction.contacts == 0)
+                interaction.collisionPenalized = false;
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -400,8 +499,9 @@ namespace SpinMotion
                 nextOpponentRejoin = Time.time + opponentRepositionCooldown;
                 nextOpponentSample = Time.time;
                 RecordParameters();
-                rivalsAhead.Clear();
+                rivalInteractions.Clear();
                 passedRivals.Clear();
+                cleanOvertakes = rivalCollisions = 0;
                 raceSpeedReward = 0f;
                 if (!pendingRejoin)
                 {
@@ -461,7 +561,7 @@ namespace SpinMotion
                     if (occupied)
                         continue;
 
-                    rivalsAhead.Remove(racer);
+                    rivalInteractions.Remove(racer);
                     racer.pendingRejoin = true;
                     racer.rejoinPosition = position;
                     racer.rejoinRotation = rotation;
@@ -856,7 +956,11 @@ namespace SpinMotion
             if (trainWithGrid)
             {
                 stats.Add("Racer/Overtakes", passedRivals.Count);
+                stats.Add("Racer/Clean Overtakes", cleanOvertakes);
+                stats.Add("Racer/Rival Collisions", rivalCollisions);
                 stats.Add("Rewards/Overtake", passedRivals.Count * overtakeReward);
+                stats.Add("Rewards/Clean Overtake", cleanOvertakes * cleanOvertakeBonus);
+                stats.Add("Rewards/Rival Collision", -rivalCollisions * rivalCollisionPenalty);
                 stats.Add("Rewards/Relative Speed", raceSpeedReward);
             }
             stats.Add("Racer/Mini Checkpoints", miniCheckpointsReached);

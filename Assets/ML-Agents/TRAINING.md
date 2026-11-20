@@ -44,23 +44,28 @@ Trainer starten.
 
 ```powershell
 & .\.venv\Scripts\python.exe .\TrainingEnvironment\Prepare-GridSeed.py
-& .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_01 --initialize-from=CarRacer_GridSeed_2000011
+& .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_CleanPass_01 --initialize-from=CarRacer_GridSeed_2000011
 ```
 
 Sobald der Trainer auf Unity wartet, **Play** drücken. Das Skript übernimmt die
 Fahrgewichte aus `CarAgent-2000011.onnx` und prüft die deterministischen Aktionen
 vor dem Speichern des Start-Checkpoints. Value-Netz und Optimizer starten frisch.
-Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_01`
+Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_CleanPass_01`
 verwenden und `--initialize-from` weglassen.
 
-- **Überholen** bringt standardmäßig `+1` pro Gegner und Episode. Beide Autos
-  müssen auf der Straße sein. Der Lernwagen muss von mindestens 2 m Rückstand
-  auf mindestens 2 m Vorsprung kommen und dabei vorwärts Strecke machen.
+- **Überholen** bringt `+0,25` pro Gegner und Episode. Der Lernwagen muss auf der
+  Straße von mindestens 2 m Rückstand auf mindestens 2 m Vorsprung kommen und den
+  Vorsprung 0,3 Sekunden bei Vorwärtsfortschritt bestätigen. Ohne Kontakt mit dem
+  überholten Gegner kommen `+0,75` dazu. Ein Respawn startet die Messung neu.
+- **Kollision** mit einem Gegner bringt `−0,5` einmal pro zusammenhängendem
+  Kontakt ab 2 m/s Relativgeschwindigkeit. Leichtere Kontakte streichen beim
+  Überholen den Bonus für ein sauberes Manöver.
 - **Relatives Tempo** gibt bis zu `+0,03` pro neuem Vorwärtsmeter auf der Straße.
   Der Bonus steigt mit dem Tempovorsprung gegenüber dem Durchschnitt der Gegner
   innerhalb von 20 m entlang der Strecke. Die vorhandenen Rewards laufen weiter.
 
-TensorBoard zeigt `Racer/Overtakes`, `Rewards/Overtake` und `Rewards/Relative Speed`.
+TensorBoard zeigt `Racer/Overtakes`, `Racer/Clean Overtakes`, `Racer/Rival Collisions`
+und die einzelnen Rewards unter `Rewards`.
 
 Die Menübefehle markieren die Szene als geändert; bei Bedarf speichern.
 Im Profil mit einem Gegner gilt der einstellbare Startversatz `(2.5, 0, 0)`.

@@ -1340,7 +1340,10 @@ MonoBehaviour:
   opponentForwardRange: {x: 0, y: 6}
   isOpponent: 0
   trainWithGrid: 1
-  overtakeReward: 1
+  overtakeReward: 0.25
+  cleanOvertakeBonus: 0.75
+  rivalCollisionPenalty: 0.5
+  collisionSpeedThreshold: 2
   relativeSpeedRewardPerMetre: 0.03
   maintainOpponentPresence: 0
   opponentMaxDistance: 15
