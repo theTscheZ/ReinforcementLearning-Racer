@@ -65,6 +65,8 @@ namespace SpinMotion
         private TrackSegment rejoinSegment;
         private int rejoinMini;
         private readonly List<CarAgent> opponents = new();
+        private CarAgent raceOwner;
+        private string pendingRaceFailure;
         public bool IsOpponent => isOpponent;
         public bool IsRacing => !episodeEnding && gameObject.activeInHierarchy;
         public float SegmentElapsed => segmentElapsed;
@@ -145,6 +147,14 @@ namespace SpinMotion
         {
             if (episodeEnding || rb == null || spawnPoint == null)
                 return;
+
+            // Rebuild the shared track from the owner's update, after the failed
+            // opponent has finished disabling itself.
+            if (pendingRaceFailure != null)
+            {
+                FailEpisode(pendingRaceFailure);
+                return;
+            }
 
             float dt = Time.fixedDeltaTime;
             timeSinceLastMiniCheckpoint += dt;
@@ -352,6 +362,7 @@ namespace SpinMotion
         public override void OnEpisodeBegin()
         {
             episodeEnding = false;
+            pendingRaceFailure = null;
             if (rb == null || spawnPoint == null || trackGenerator == null)
                 return;
 
@@ -575,6 +586,7 @@ namespace SpinMotion
             clone.SetActive(false);
             var opponent = clone.GetComponent<CarAgent>();
             opponent.isOpponent = true;
+            opponent.raceOwner = this;
             opponent.spawnOpponent = false;
             opponent.trainWithGrid = false;
             if (trainWithGrid)
@@ -722,6 +734,8 @@ namespace SpinMotion
                 opponentFailureTime = Time.time;
                 // The primary's presence controller can safely rejoin this opponent.
                 gameObject.SetActive(false);
+                if (raceOwner != null && raceOwner.trainWithGrid)
+                    raceOwner.pendingRaceFailure = reason;
                 return;
             }
             var stats = Academy.Instance.StatsRecorder;
