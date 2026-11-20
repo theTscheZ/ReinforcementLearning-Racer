@@ -39,6 +39,8 @@ namespace SpinMotion
         [SerializeField] private bool isOpponent;
         [Header("Grid training")]
         [SerializeField] private bool trainWithGrid;
+        [Range(0f, 1f), SerializeField] private float gridDrivingRewardScale = 0.25f;
+        private float DrivingRewardScale => trainWithGrid ? gridDrivingRewardScale : 1f;
         [Min(0f), SerializeField] private float overtakeReward = 0.25f;
         [Min(0f), SerializeField] private float cleanOvertakeBonus = 0.75f;
         [Min(0f), SerializeField] private float rivalCollisionPenalty = 0.5f;
@@ -217,7 +219,7 @@ namespace SpinMotion
                     Vector3.Distance(lastPosition, transform.position));
                 if (progress > 0f)
                 {
-                    float reward = progress * Mathf.Max(0f, progressRewardPerMetre);
+                    float reward = progress * Mathf.Max(0f, progressRewardPerMetre) * DrivingRewardScale;
                     AddReward(reward);
                     progressReward += reward;
                     targetProgress = progress;
@@ -254,9 +256,9 @@ namespace SpinMotion
                 return 0f;
 
             float speed = Mathf.Max(0f, Vector3.Dot(rb.linearVelocity, forward));
-            float distanceReward = metres * Mathf.Max(0f, forwardDistanceRewardPerMetre);
+            float distanceReward = metres * Mathf.Max(0f, forwardDistanceRewardPerMetre) * DrivingRewardScale;
             float speedBonus = metres * Mathf.Max(0f, forwardSpeedBonusPerMetre)
-                * Mathf.Clamp01(speed / Mathf.Max(0.1f, speedRewardReference));
+                * Mathf.Clamp01(speed / Mathf.Max(0.1f, speedRewardReference)) * DrivingRewardScale;
             AddReward(distanceReward + speedBonus);
             forwardMetres += metres;
             forwardDistanceReward += distanceReward;
@@ -303,7 +305,7 @@ namespace SpinMotion
                 return;
 
             float speedAdvantage = speed - rivalSpeedSum / nearbyRivals;
-            float reward = forwardMetresThisStep * relativeSpeedRewardPerMetre *
+            float reward = forwardMetresThisStep * relativeSpeedRewardPerMetre * DrivingRewardScale *
                 Mathf.Clamp01(speedAdvantage / Mathf.Max(0.1f, speedRewardReference));
             AddReward(reward);
             raceSpeedReward += reward;
@@ -831,6 +833,7 @@ namespace SpinMotion
             stats.Add("Parameters/Forward Distance Reward Per Metre", forwardDistanceRewardPerMetre);
             stats.Add("Parameters/Forward Speed Bonus Per Metre", forwardSpeedBonusPerMetre);
             stats.Add("Parameters/Speed Reward Reference", speedRewardReference);
+            stats.Add("Parameters/Driving Reward Scale", DrivingRewardScale);
             stats.Add("Parameters/Stuck Time Limit", stuckTimeLimit);
             var road = GetComponent<RayPerceptionSensorComponent3D>();
             var traffic = transform.Find(TrafficSensorName)?.GetComponent<RayPerceptionSensorComponent3D>();
@@ -865,7 +868,7 @@ namespace SpinMotion
             if (episodeEnding || !trackGenerator.TryReachMiniCheckpoint(this, checkpoint))
                 return false;
             float elapsed = timeSinceLastMiniCheckpoint;
-            float reward = TimeScaledReward(checkpointReward, elapsed, minimumCheckpointSeconds);
+            float reward = TimeScaledReward(checkpointReward, elapsed, minimumCheckpointSeconds) * DrivingRewardScale;
             AddReward(reward);
             checkpointRewards += reward;
             totalCheckpointSeconds += elapsed;
@@ -895,7 +898,7 @@ namespace SpinMotion
         {
             if (episodeEnding)
                 return;
-            float reward = TimeScaledReward(segmentReward, elapsedSeconds, minimumCheckpointSeconds);
+            float reward = TimeScaledReward(segmentReward, elapsedSeconds, minimumCheckpointSeconds) * DrivingRewardScale;
             AddReward(reward);
             checkpointRewards += reward;
             if (!isOpponent)

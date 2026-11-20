@@ -43,13 +43,13 @@ ONNX-Modelle und der aus `CarAgent-2000011.onnx` erzeugte Start-Checkpoint
 sind im Repository. Danach den Trainer aus dem Projektordner starten.
 
 ```powershell
-& .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_CleanPass_01 --initialize-from=CarRacer_GridSeed_2000011
+& .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_PassFocus_01 --initialize-from=CarRacer_GridSeed_2000011
 ```
 
 Sobald der Trainer auf Unity wartet, **Play** drücken. Der mitgelieferte
 Checkpoint enthält die geprüften Fahrgewichte aus `CarAgent-2000011.onnx`.
 Value-Netz und Optimizer starten frisch.
-Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_CleanPass_01`
+Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_PassFocus_01`
 verwenden und `--initialize-from` weglassen.
 
 - **Überholen** bringt `+0,25` pro Gegner und Episode. Der Lernwagen muss auf der
@@ -59,9 +59,10 @@ verwenden und `--initialize-from` weglassen.
 - **Kollision** mit einem Gegner bringt `−0,5` einmal pro zusammenhängendem
   Kontakt ab 2 m/s Relativgeschwindigkeit. Leichtere Kontakte streichen beim
   Überholen den Bonus für ein sauberes Manöver.
-- **Relatives Tempo** gibt bis zu `+0,03` pro neuem Vorwärtsmeter auf der Straße.
-  Der Bonus steigt mit dem Tempovorsprung gegenüber dem Durchschnitt der Gegner
-  innerhalb von 20 m entlang der Strecke. Die vorhandenen Rewards laufen weiter.
+- **Strecke und Tempo** zählen im Grid mit 25 % ihres bisherigen Werts. Das gilt
+  für Checkpoints, Streckenabschnitte, Fortschritt, Vorwärtsstrecke und beide
+  Tempo-Rewards. Relatives Tempo bringt damit bis zu `+0,0075` pro neuem
+  Vorwärtsmeter auf der Straße.
 
 TensorBoard zeigt `Racer/Overtakes`, `Racer/Clean Overtakes`, `Racer/Rival Collisions`
 und die einzelnen Rewards unter `Rewards`.
