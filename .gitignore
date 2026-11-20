@@ -134,7 +134,14 @@ results/
 *.onnx
 *.pt
 
-# Exported inference models belong to the project; training checkpoints stay ignored.
+# The ONNX models and the verified Grid starter checkpoint belong to the project.
+!/results/
+/results/*
+!/results/CarRacer_GridSeed_2000011/
+/results/CarRacer_GridSeed_2000011/*
+!/results/CarRacer_GridSeed_2000011/CarAgent/
+/results/CarRacer_GridSeed_2000011/CarAgent/*
+!/results/CarRacer_GridSeed_2000011/CarAgent/checkpoint.pt
 !/Assets/ML-Agents/Models/*.onnx
 
 # Automatically generated Unity ML-Agents timing reports.

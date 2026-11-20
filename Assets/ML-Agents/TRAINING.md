@@ -39,17 +39,16 @@ ML-Agents-Episode beim Wiedereinstieg nahe seinem letzten Checkpoint.
 
 Auf einem frischen Windows-x64-Checkout mit Python 3.10.11 im Projektordner
 einmal `& .\TrainingEnvironment\Restore-Venv.ps1` ausführen. Beide benötigten
-ONNX-Modelle sind im Repository. Danach den Start-Checkpoint erzeugen und den
-Trainer starten.
+ONNX-Modelle und der aus `CarAgent-2000011.onnx` erzeugte Start-Checkpoint
+sind im Repository. Danach den Trainer aus dem Projektordner starten.
 
 ```powershell
-& .\.venv\Scripts\python.exe .\TrainingEnvironment\Prepare-GridSeed.py
 & .\.venv\Scripts\mlagents-learn.exe .\Assets\ML-Agents\racer.yaml --run-id=CarRacer_Grid_CleanPass_01 --initialize-from=CarRacer_GridSeed_2000011
 ```
 
-Sobald der Trainer auf Unity wartet, **Play** drücken. Das Skript übernimmt die
-Fahrgewichte aus `CarAgent-2000011.onnx` und prüft die deterministischen Aktionen
-vor dem Speichern des Start-Checkpoints. Value-Netz und Optimizer starten frisch.
+Sobald der Trainer auf Unity wartet, **Play** drücken. Der mitgelieferte
+Checkpoint enthält die geprüften Fahrgewichte aus `CarAgent-2000011.onnx`.
+Value-Netz und Optimizer starten frisch.
 Für einen späteren Neustart desselben Grid-Laufs `--resume` mit `CarRacer_Grid_CleanPass_01`
 verwenden und `--initialize-from` weglassen.
 
@@ -260,7 +259,7 @@ Der alte Lauf `CarRacer_RoadFeedback_Smoke_20261024` enthält den Checkpoint bei
 1.564.601 Schritten. Das zugehörige ONNX liegt unter `Assets/ML-Agents/Models/`
 und wird zusammen mit den anderen exportierten Inferenzmodellen unter
 `Assets/ML-Agents/Models` versioniert.
-Für Training werden zusätzlich PT-Checkpoints benötigt; `results` bleibt ignoriert.
+Für das Fortsetzen eines eigenen Laufs werden dessen lokale PT-Checkpoints benötigt.
 
 Die vorigen 40.000-Schritt-Tests vom 24.10.2026 betrafen den damaligen Reward-
 und Sensorstand und belegen keine Lernqualität des neuen kompakten Profils.
@@ -410,6 +409,6 @@ Trainingsläufen zugeordnet. Zum Ausprobieren das neue Modell am Hauptwagen
 mit beiden nativen Sensoren und `Inference Only` betreiben; nicht im
 Legacy-Rennmodus mit 35 Rays pro Richtung. Der feste Gegner-Slot bleibt auf das
 Legacy-Modell ausgelegt. Die ONNX-Dateien sind für Inferenz; fortsetzbare
-PT-Checkpoints und TensorBoard-Verläufe unter `results` bleiben lokale Dateien.
+Checkpoints und TensorBoard-Verläufe aus eigenen Trainingsläufen bleiben lokal.
 Automatisch erzeugte Dateien unter `Assets/ML-Agents/Timers` werden nicht mehr
 versioniert.
