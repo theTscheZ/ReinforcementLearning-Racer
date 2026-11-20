@@ -414,25 +414,42 @@ namespace SpinMotion
 
         private void RecoverGridCars()
         {
-            TryRecoverGridCar(this);
-            foreach (var rival in opponents)
-                TryRecoverGridCar(rival);
-        }
-
-        private void TryRecoverGridCar(CarAgent racer)
-        {
-            if (!racer.episodeEnding || Time.time - racer.opponentFailureTime < opponentRespawnDelay)
+            if (episodeEnding && Time.time - opponentFailureTime >= opponentRespawnDelay)
+                TryRecoverGridCar(this);
+            if (episodeEnding || opponents.Count == 0 || GroundedRoadFraction() < 0.5f)
                 return;
 
-            var bodies = racer.GetComponentsInChildren<Collider>(true);
-            for (float ahead = 1f; ahead <= 15f; ahead += 2f)
+            foreach (var rival in opponents)
             {
-                if (!trackGenerator.TryGetRejoinPose(racer, ahead, out Vector3 center,
-                    out Quaternion rotation, out TrackSegment segment, out int mini, fromLastCheckpoint: true))
+                if (Time.time < rival.nextOpponentRejoin)
+                    continue;
+                if (rival.IsRacing && FlatDistance(transform.position, rival.transform.position) <= opponentMaxDistance)
+                    continue;
+                if (!rival.IsRacing && Time.time - rival.opponentFailureTime < opponentRespawnDelay)
+                    continue;
+
+                bool rejoined = TryRecoverGridCar(rival);
+                rival.nextOpponentRejoin = Time.time + (rejoined ? opponentRepositionCooldown : 0.25f);
+            }
+        }
+
+        private bool TryRecoverGridCar(CarAgent racer)
+        {
+            bool returningLearner = racer == this;
+            var bodies = racer.GetComponentsInChildren<Collider>(true);
+            float firstDistance = returningLearner ? 1f : 6f;
+            float lastDistance = returningLearner ? 15f : opponentMaxDistance;
+            for (float ahead = firstDistance; ahead <= lastDistance; ahead += returningLearner ? 2f : 1f)
+            {
+                if (!trackGenerator.TryGetRejoinPose(this, ahead, out Vector3 center,
+                    out Quaternion rotation, out TrackSegment segment, out int mini, fromLastCheckpoint: returningLearner))
                     break;
-                for (int lane = -1; lane <= 1; lane++)
+                for (int lane = 0; lane < 3; lane++)
                 {
-                    Vector3 position = center + rotation * Vector3.right * lane;
+                    float lateral = lane == 0 ? 0f : lane == 1 ? 1f : -1f;
+                    Vector3 position = center + rotation * Vector3.right * lateral;
+                    if (!returningLearner && FlatDistance(transform.position, position) > opponentMaxDistance)
+                        continue;
                     if (!trackGenerator.HasRoadFootprint(position, rotation, out float roadHeight))
                         continue;
                     position.y = roadHeight + gridSpawnClearance;
@@ -457,9 +474,15 @@ namespace SpinMotion
                     }
                     racer.EndEpisode();
                     racer.pendingRejoin = false;
-                    return;
+                    if (!returningLearner)
+                    {
+                        Vector3 forward = rotation * Vector3.forward;
+                        racer.rb.linearVelocity = forward * Mathf.Clamp(Vector3.Dot(rb.linearVelocity, forward), 0f, 25f);
+                    }
+                    return true;
                 }
             }
+            return false;
         }
 
         private static bool OverlapsGridCar(CarAgent racer, Collider[] bodies, Vector3 position,
@@ -467,6 +490,8 @@ namespace SpinMotion
         {
             if (other == racer || !other.gameObject.activeInHierarchy)
                 return false;
+            if (FlatDistance(position, other.transform.position) < 4f)
+                return true;
 
             Quaternion delta = rotation * Quaternion.Inverse(racer.transform.rotation);
             foreach (var body in bodies)
@@ -804,6 +829,7 @@ namespace SpinMotion
                 rb.isKinematic = true;
                 if (isOpponent)
                 {
+                    trackGenerator.RemoveRacer(this);
                     gameObject.SetActive(false);
                     return;
                 }
