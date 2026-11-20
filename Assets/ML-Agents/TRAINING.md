@@ -29,10 +29,11 @@ Profilwechsel lässt sich das Grid über **Racer > Training > 3 - Grid race
 (3 opponents)** wieder einstellen.
 Der Lernwagen behält die 44 Straßen-Raywerte, 27 Traffic-Raywerte und 18 Vektorwerte
 des Solo-Modells. Die drei Gegner fahren mit dem festen Modell `CarAgent-1564601`.
-Ein Sturz, Stillstand oder Timeout eines beliebigen Wagens beendet die gemeinsame
-Grid-Episode. Alle vier Wagen starten wieder auf ihren festen Plätzen. Bei einem
-Crash greift die Stillstandserkennung nach acht Sekunden ohne Fortschritt.
-Der Kurs wird wie bisher pro Episode generiert.
+Nach einem Sturz, Stillstand oder Timeout setzt nur der betroffene Wagen auf
+einem freien Stück der bestehenden Strecke nahe seinem letzten Checkpoint wieder
+ein. Die übrigen Wagen behalten ihre Position und ihren Fortschritt. Wenn der
+Lernwagen ausfällt, beginnt beim Wiedereinstieg seine nächste ML-Agents-Episode.
+Die festen Startplätze gelten beim Aufbau einer neuen Strecke.
 
 Auf einem frischen Windows-x64-Checkout mit Python 3.10.11 im Projektordner
 einmal `& .\TrainingEnvironment\Restore-Venv.ps1` ausführen. Beide benötigten

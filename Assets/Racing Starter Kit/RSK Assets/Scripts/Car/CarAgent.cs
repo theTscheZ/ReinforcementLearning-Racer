@@ -66,7 +66,7 @@ namespace SpinMotion
         private int rejoinMini;
         private readonly List<CarAgent> opponents = new();
         private CarAgent raceOwner;
-        private string pendingRaceFailure;
+        private float gridSpawnClearance;
         public bool IsOpponent => isOpponent;
         public bool IsRacing => !episodeEnding && gameObject.activeInHierarchy;
         public float SegmentElapsed => segmentElapsed;
@@ -145,16 +145,10 @@ namespace SpinMotion
 
         private void FixedUpdate()
         {
+            if (trainWithGrid)
+                RecoverGridCars();
             if (episodeEnding || rb == null || spawnPoint == null)
                 return;
-
-            // Rebuild the shared track from the owner's update, after the failed
-            // opponent has finished disabling itself.
-            if (pendingRaceFailure != null)
-            {
-                FailEpisode(pendingRaceFailure);
-                return;
-            }
 
             float dt = Time.fixedDeltaTime;
             timeSinceLastMiniCheckpoint += dt;
@@ -362,22 +356,21 @@ namespace SpinMotion
         public override void OnEpisodeBegin()
         {
             episodeEnding = false;
-            pendingRaceFailure = null;
             if (rb == null || spawnPoint == null || trackGenerator == null)
                 return;
 
+            rb.isKinematic = false;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-            rb.isKinematic = false;
             transform.SetPositionAndRotation(pendingRejoin ? rejoinPosition : GetSpawnPosition(),
                 pendingRejoin ? rejoinRotation : spawnPoint.rotation);
             car.ResetControlState();
             if (isOpponent && !pendingRejoin)
                 SeparateFromPlayer();
-            if (!isOpponent)
-                trackGenerator.ResetTrack();
-            else if (pendingRejoin)
+            if (pendingRejoin)
                 trackGenerator.RegisterRacerAt(this, rejoinSegment, rejoinMini);
+            else if (!isOpponent)
+                trackGenerator.ResetTrack();
             else
                 trackGenerator.RegisterRacer(this);
             Physics.SyncTransforms();
@@ -410,8 +403,84 @@ namespace SpinMotion
                 rivalsAhead.Clear();
                 passedRivals.Clear();
                 raceSpeedReward = 0f;
-                ResetOpponents();
+                if (!pendingRejoin)
+                {
+                    gridSpawnClearance = trackGenerator.TryRoadHeight(transform.position, out float roadHeight)
+                        ? Mathf.Max(0f, transform.position.y - roadHeight) : 0.1f;
+                    ResetOpponents();
+                }
             }
+        }
+
+        private void RecoverGridCars()
+        {
+            TryRecoverGridCar(this);
+            foreach (var rival in opponents)
+                TryRecoverGridCar(rival);
+        }
+
+        private void TryRecoverGridCar(CarAgent racer)
+        {
+            if (!racer.episodeEnding || Time.time - racer.opponentFailureTime < opponentRespawnDelay)
+                return;
+
+            var bodies = racer.GetComponentsInChildren<Collider>(true);
+            for (float ahead = 1f; ahead <= 15f; ahead += 2f)
+            {
+                if (!trackGenerator.TryGetRejoinPose(racer, ahead, out Vector3 center,
+                    out Quaternion rotation, out TrackSegment segment, out int mini, fromLastCheckpoint: true))
+                    break;
+                for (int lane = -1; lane <= 1; lane++)
+                {
+                    Vector3 position = center + rotation * Vector3.right * lane;
+                    if (!trackGenerator.HasRoadFootprint(position, rotation, out float roadHeight))
+                        continue;
+                    position.y = roadHeight + gridSpawnClearance;
+                    if (OverlapsGridCar(racer, bodies, position, rotation, this))
+                        continue;
+                    bool occupied = false;
+                    foreach (var rival in opponents)
+                        occupied |= OverlapsGridCar(racer, bodies, position, rotation, rival);
+                    if (occupied)
+                        continue;
+
+                    rivalsAhead.Remove(racer);
+                    racer.pendingRejoin = true;
+                    racer.rejoinPosition = position;
+                    racer.rejoinRotation = rotation;
+                    racer.rejoinSegment = segment;
+                    racer.rejoinMini = mini;
+                    if (!racer.gameObject.activeSelf)
+                    {
+                        racer.transform.SetPositionAndRotation(position, rotation);
+                        racer.gameObject.SetActive(true);
+                    }
+                    racer.EndEpisode();
+                    racer.pendingRejoin = false;
+                    return;
+                }
+            }
+        }
+
+        private static bool OverlapsGridCar(CarAgent racer, Collider[] bodies, Vector3 position,
+            Quaternion rotation, CarAgent other)
+        {
+            if (other == racer || !other.gameObject.activeInHierarchy)
+                return false;
+
+            Quaternion delta = rotation * Quaternion.Inverse(racer.transform.rotation);
+            foreach (var body in bodies)
+                foreach (var obstacle in other.GetComponentsInChildren<Collider>())
+                {
+                    if (!body.enabled || !obstacle.enabled || body.isTrigger || obstacle.isTrigger ||
+                        body is WheelCollider || obstacle is WheelCollider)
+                        continue;
+                    Vector3 bodyPosition = position + delta * (body.transform.position - racer.transform.position);
+                    if (Physics.ComputePenetration(body, bodyPosition, delta * body.transform.rotation,
+                        obstacle, obstacle.transform.position, obstacle.transform.rotation, out _, out _))
+                        return true;
+                }
+            return false;
         }
 
         private void ResetOpponents()
@@ -725,6 +794,20 @@ namespace SpinMotion
             episodeEnding = true;
             if (checkpointTimer != null)
                 checkpointTimer.StopTimer();
+            bool recoverIndividually = trainWithGrid || (raceOwner != null && raceOwner.trainWithGrid);
+            if (recoverIndividually)
+            {
+                opponentFailureTime = Time.time;
+                car.ResetControlState();
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.isKinematic = true;
+                if (isOpponent)
+                {
+                    gameObject.SetActive(false);
+                    return;
+                }
+            }
             if (isOpponent)
             {
                 trackGenerator.RemoveRacer(this);
@@ -734,8 +817,6 @@ namespace SpinMotion
                 opponentFailureTime = Time.time;
                 // The primary's presence controller can safely rejoin this opponent.
                 gameObject.SetActive(false);
-                if (raceOwner != null && raceOwner.trainWithGrid)
-                    raceOwner.pendingRaceFailure = reason;
                 return;
             }
             var stats = Academy.Instance.StatsRecorder;
@@ -767,7 +848,8 @@ namespace SpinMotion
             stats.Add("Racer/Timeout", reason == "Timeout" ? 1f : 0f);
             if (verboseLogging)
                 Debug.Log($"[Racer] {reason}; mini={miniCheckpointsReached}, segments={segmentsReached}", this);
-            EndEpisode();
+            if (!recoverIndividually)
+                EndEpisode();
         }
     }
 }

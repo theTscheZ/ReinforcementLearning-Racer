@@ -42,7 +42,7 @@ namespace SpinMotion
         // Follow the ordered route, not the car's instantaneous heading. This also
         // handles bends and crossing into the next generated segment.
         public bool TryGetRejoinPose(CarAgent reference, float ahead, out Vector3 position,
-            out Quaternion rotation, out TrackSegment segment, out int mini)
+            out Quaternion rotation, out TrackSegment segment, out int mini, bool fromLastCheckpoint = false)
         {
             position = Vector3.zero;
             rotation = Quaternion.identity;
@@ -53,6 +53,13 @@ namespace SpinMotion
             int index = activeSegments.IndexOf(route.segment);
             mini = route.mini;
             Vector3 from = reference.transform.position;
+            if (fromLastCheckpoint)
+            {
+                if (index < 0)
+                    return false;
+                from = mini > 0 ? route.segment.MiniCheckpointAt(mini - 1).transform.position
+                    : route.segment == raceStartSegment ? raceStartPosition : route.segment.EntryPoint.position;
+            }
             float remaining = Mathf.Max(0f, ahead);
             while (index >= 0 && index < activeSegments.Count)
             {
